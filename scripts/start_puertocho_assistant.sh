@@ -146,12 +146,7 @@ main() {
     TTS_CHECK_SCRIPT="$PROJECT_ROOT/scripts/check_tts_services.sh"
     if [ -f "$TTS_CHECK_SCRIPT" ]; then
         bash "$TTS_CHECK_SCRIPT"
-        
-        # Cargar configuración generada
-        if [ -f "$PROJECT_ROOT/.env.tts" ]; then
-            source "$PROJECT_ROOT/.env.tts"
-            print_status $GREEN "✅ Configuración TTS cargada"
-        fi
+        print_status $GREEN "✅ Verificación TTS completada"
     else
         print_status $YELLOW "⚠️  Script de verificación TTS no encontrado"
         print_status $YELLOW "   Usando configuración estática"

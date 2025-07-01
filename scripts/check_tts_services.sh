@@ -34,7 +34,9 @@ load_env_from_root() {
         set +a
         print_status $BLUE "📄 Variables de entorno cargadas desde $ENV_FILE"
     else
-        print_status $YELLOW "⚠️  Archivo .env no encontrado en la raíz ($PROJECT_ROOT), usando valores por defecto"
+        print_status $RED "❌ Archivo .env no encontrado en la raíz del proyecto ($PROJECT_ROOT)"
+        print_status $YELLOW "💡 Crea el archivo .env en la raíz antes de continuar."
+        exit 1
     fi
 }
 
@@ -247,29 +249,6 @@ main() {
     echo "PRIMARY_TTS_SERVICE=$PRIMARY_TTS_SERVICE"
     echo "FALLBACK_TTS_SERVICE=$FALLBACK_TTS_SERVICE"
     echo "DOCKER_COMPOSE_PROFILES=$DOCKER_COMPOSE_PROFILES"
-    
-    # Escribir configuración a archivo temporal para docker-compose
-    cat > .env.tts << EOF
-# Configuración automática de servicios TTS/ASR
-# Generado por check_tts_services.sh el $(date)
-
-ENABLE_WHISPER=$ENABLE_WHISPER
-ENABLE_F5_TTS=$ENABLE_F5_TTS
-ENABLE_AZURE_TTS=$ENABLE_AZURE_TTS
-ENABLE_KOKORO_TTS=$ENABLE_KOKORO_TTS
-
-WHISPER_URL=$WHISPER_URL
-F5_TTS_URL=$F5_TTS_URL
-AZURE_TTS_URL=$AZURE_TTS_URL
-KOKORO_TTS_URL=$KOKORO_TTS_URL
-
-PRIMARY_TTS_SERVICE=$PRIMARY_TTS_SERVICE
-FALLBACK_TTS_SERVICE=$FALLBACK_TTS_SERVICE
-
-DOCKER_COMPOSE_PROFILES=$DOCKER_COMPOSE_PROFILES
-EOF
-    
-    print_status $GREEN "✅ Configuración guardada en .env.tts"
     
     # Mostrar comandos recomendados
     echo ""
