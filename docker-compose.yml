@@ -1,0 +1,340 @@
+networks:
+  puertocho-assistant-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  f5_models:
+    driver: local
+
+services:
+  puertocho-assistant-postgres-db:
+    image: postgres:15-alpine
+    container_name: ${DB_SERVICE}
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - DB_SERVICE=${DB_SERVICE}
+      - PORT_DB=${PORT_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - puertocho-assistant-network
+
+  puertocho-assistant-eureka:
+    build:
+      context: ./puertocho-assistant-server/eurekams
+      dockerfile: dockerfile
+    container_name: ${EUREKA_SERVICE}
+    environment:
+      - EUREKA_SERVICE=${EUREKA_SERVICE}
+      - PORT_EUREKA=${PORT_EUREKA}
+      - SPRING_APPLICATION_NAME=${EUREKA_SERVICE}
+      - CONFIG_SERVICE=${CONFIG_SERVICE}
+      - PORT_CONFIG=${PORT_CONFIG}
+    restart: unless-stopped
+    depends_on:
+      puertocho-assistant-config:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://${EUREKA_SERVICE}:${PORT_EUREKA}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - puertocho-assistant-network
+
+  puertocho-assistant-config:
+    build:
+      context: ./puertocho-assistant-server/configms
+      dockerfile: dockerfile
+    container_name: ${CONFIG_SERVICE}
+    environment:
+      - CONFIG_SERVICE=${CONFIG_SERVICE}
+      - PORT_CONFIG=${PORT_CONFIG}
+      - SPRING_APPLICATION_NAME=${CONFIG_SERVICE}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://${CONFIG_SERVICE}:${PORT_CONFIG}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - puertocho-assistant-network
+
+  puertocho-assistant-gateway:
+    build:
+      context: ./puertocho-assistant-server/gatewayms
+      dockerfile: dockerfile
+    container_name: ${GATEWAY_SERVICE}
+    environment:
+      # Microservicios habilitados
+      - ENABLE_USER=${ENABLE_USER}
+      - ENABLE_MAIL=${ENABLE_MAIL}
+      - ENABLE_CLOUD=${ENABLE_CLOUD}
+      - ENABLE_INTENT_MANAGER=${ENABLE_INTENT_MANAGER}
+
+      # Microservicios
+      - GATEWAY_SERVICE=${GATEWAY_SERVICE}
+      - PORT_GATEWAY=${PORT_GATEWAY}
+      - USER_SERVICE=${USER_SERVICE}
+      - PORT_USER=${PORT_USER}
+      - MAIL_SERVICE=${MAIL_SERVICE}
+      - PORT_MAIL=${PORT_MAIL}
+      - CONFIG_SERVICE=${CONFIG_SERVICE}
+      - PORT_CONFIG=${PORT_CONFIG}
+      - EUREKA_SERVICE=${EUREKA_SERVICE}
+      - PORT_EUREKA=${PORT_EUREKA}
+      - CLOUD_SERVICE=${CLOUD_SERVICE}
+      - PORT_CLOUD=${PORT_CLOUD}
+      - INTENT_MANAGER_SERVICE=${INTENT_MANAGER_SERVICE}
+      - PORT_INTENT_MANAGER=${PORT_INTENT_MANAGER}
+
+      # Gateway config
+      - SPRING_APPLICATION_NAME=${GATEWAY_SERVICE}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - CORS_ALLOWED_HEADERS=${CORS_ALLOWED_HEADERS}
+      - CORS_ALLOW_CREDENTIALS=${CORS_ALLOW_CREDENTIALS}
+      - CORS_MAX_AGE=${CORS_MAX_AGE}
+    ports:
+      - "${PORT_GATEWAY}:${PORT_GATEWAY}"
+    restart: unless-stopped
+    depends_on:
+      puertocho-assistant-eureka:
+        condition: service_healthy
+      puertocho-assistant-config:
+        condition: service_started
+    networks:
+      - puertocho-assistant-network
+
+  puertocho-assistant-mail:
+    build:
+      context: ./puertocho-assistant-server/mailms
+      dockerfile: dockerfile
+    container_name: ${MAIL_SERVICE}
+    environment:
+      - MAIL_SERVICE=${MAIL_SERVICE}
+      - PORT_MAIL=${PORT_MAIL}
+      - SPRING_APPLICATION_NAME=${MAIL_SERVICE}
+      - DB_SERVICE=${DB_SERVICE}
+      - PORT_DB=${PORT_DB}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - EUREKA_SERVICE=${EUREKA_SERVICE}
+      - PORT_EUREKA=${PORT_EUREKA}
+      - CONFIG_SERVICE=${CONFIG_SERVICE}
+      - PORT_CONFIG=${PORT_CONFIG}
+    restart: unless-stopped
+    depends_on:
+      puertocho-assistant-postgres-db:
+        condition: service_started
+      puertocho-assistant-eureka:
+        condition: service_healthy
+      puertocho-assistant-config:
+        condition: service_started
+    networks:
+      - puertocho-assistant-network
+
+  puertocho-assistant-user:
+    build:
+      context: ./puertocho-assistant-server/userms
+      dockerfile: dockerfile
+    container_name: ${USER_SERVICE}
+    environment:
+      - USER_SERVICE=${USER_SERVICE}
+      - PORT_USER=${PORT_USER}
+      - SPRING_APPLICATION_NAME=${USER_SERVICE}
+      - DB_SERVICE=${DB_SERVICE}
+      - PORT_DB=${PORT_DB}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - EUREKA_SERVICE=${EUREKA_SERVICE}
+      - PORT_EUREKA=${PORT_EUREKA}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - CONFIG_SERVICE=${CONFIG_SERVICE}
+      - PORT_CONFIG=${PORT_CONFIG}
+    privileged: true
+    restart: unless-stopped
+    depends_on:
+      puertocho-assistant-postgres-db:
+        condition: service_started
+      puertocho-assistant-eureka:
+        condition: service_healthy
+      puertocho-assistant-config:
+        condition: service_started
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./puertocho-assistant-server/userms/src:/app/src
+    networks:
+      - puertocho-assistant-network
+
+  puertocho-assistant-intent-manager:
+    build:
+      context: ./puertocho-assistant-server/intentmanagerms
+      dockerfile: dockerfile
+    container_name: ${INTENT_MANAGER_SERVICE}
+    environment:
+      - INTENT_MANAGER_SERVICE=${INTENT_MANAGER_SERVICE}
+      - PORT_INTENT_MANAGER=${PORT_INTENT_MANAGER}
+      - SPRING_APPLICATION_NAME=${INTENT_MANAGER_SERVICE}
+      - EUREKA_SERVICE=${EUREKA_SERVICE}
+      - PORT_EUREKA=${PORT_EUREKA}
+      - CONFIG_SERVICE=${CONFIG_SERVICE}
+      - PORT_CONFIG=${PORT_CONFIG}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SMART_HOME_SERVICE=${SMART_HOME_SERVICE}
+      - PORT_SMART_HOME=${PORT_SMART_HOME}
+      
+      # Configuración de servicios TTS/ASR
+      - WHISPER_URL=${WHISPER_URL:-http://puertocho-assistant-whisper:5000}
+      - TTS_F5_URL=${F5_TTS_URL:-http://disabled}
+      - TTS_AZURE_URL=${AZURE_TTS_URL:-http://puertocho-assistant-azure-tts:5000}
+      - TTS_KOKORO_URL=${KOKORO_TTS_URL:-http://puertocho-assistant-kokoro-tts:5002}
+      - TTS_PRIMARY_SERVICE=${PRIMARY_TTS_SERVICE:-azure_tts}
+      - TTS_FALLBACK_SERVICE=${FALLBACK_TTS_SERVICE:-kokoro_tts}
+      - TTS_DEFAULT_VOICE=${AZURE_TTS_DEFAULT_VOICE:-Abril}
+      - TTS_DEFAULT_LANGUAGE=${AZURE_TTS_DEFAULT_LANGUAGE:-es-ES}
+    ports:
+      - "9904:9904"
+    restart: unless-stopped
+    depends_on:
+      puertocho-assistant-eureka:
+        condition: service_healthy
+      puertocho-assistant-config:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://${INTENT_MANAGER_SERVICE}:${PORT_INTENT_MANAGER}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - puertocho-assistant-network
+
+  # =============================================================================
+  # SERVICIOS TTS/ASR - COMUNES A MÚLTIPLES APLICACIONES
+  # =============================================================================
+  
+  # Servicio STT (Speech-to-Text) - Whisper
+  puertocho-assistant-whisper:
+    build:
+      context: ./puertocho-assistant-server/whisper-ms/app
+      dockerfile: Dockerfile
+    container_name: ${WHISPER_SERVICE:-whisper-api}
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - WHISPER_MODEL=${WHISPER_MODEL:-base}
+      - FLASK_HOST=${WHISPER_FLASK_HOST:-0.0.0.0}
+      - FLASK_PORT=${WHISPER_FLASK_PORT:-5000}
+      - DEFAULT_LANGUAGE=${WHISPER_DEFAULT_LANGUAGE:-es}
+      - DEBUG_AUDIO=${WHISPER_DEBUG_AUDIO:-true}
+    ports:
+      - "${WHISPER_API_PORT:-5000}:${WHISPER_FLASK_PORT:-5000}"
+    volumes:
+      - ./puertocho-assistant-server/whisper-ms/debug_audio:/app/debug_audio
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${WHISPER_FLASK_PORT:-5000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - puertocho-assistant-network
+    profiles:
+      - tts-stack
+      - full
+
+  # Servicio TTS Respaldo - Azure TTS (por defecto)
+  puertocho-assistant-azure-tts:
+    build:
+      context: ./puertocho-assistant-server/azure-tts-ms/app
+      dockerfile: Dockerfile
+    container_name: ${AZURE_TTS_CONTAINER_NAME:-azure-tts-service}
+    environment:
+      - FLASK_HOST=${AZURE_TTS_FLASK_HOST:-0.0.0.0}
+      - FLASK_PORT=${AZURE_TTS_CONTAINER_PORT:-5000}
+      - DEFAULT_LANGUAGE=${AZURE_TTS_DEFAULT_LANGUAGE:-es-ES}
+      - DEFAULT_VOICE=${AZURE_TTS_DEFAULT_VOICE:-Abril}
+      - DEBUG_AUDIO=${AZURE_TTS_DEBUG_AUDIO:-true}
+      - AZURE_TTS_KEY=${AZURE_TTS_KEY}
+      - AZURE_TTS_REGION=${AZURE_TTS_REGION}
+    ports:
+      - "${AZURE_TTS_HOST_PORT:-5004}:${AZURE_TTS_CONTAINER_PORT:-5000}"
+    volumes:
+      - ${AZURE_TTS_DEBUG_AUDIO_PATH:-./puertocho-assistant-server/azure-tts-ms/debug_audio}:/app/debug_audio
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${AZURE_TTS_CONTAINER_PORT:-5000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - puertocho-assistant-network
+    profiles:
+      - tts-stack
+      - full
+      - backup-tts
+
+  # Servicio TTS Alternativo - Kokoro TTS
+  puertocho-assistant-kokoro-tts:
+    build:
+      context: ./puertocho-assistant-server/kokoro-tts-ms/app
+      dockerfile: Dockerfile
+    container_name: ${KOKORO_TTS_CONTAINER_NAME:-kokoro-tts}
+    environment:
+      - FLASK_HOST=${KOKORO_TTS_FLASK_HOST:-0.0.0.0}
+      - FLASK_PORT=${KOKORO_TTS_FLASK_PORT:-5002}
+      - DEFAULT_LANGUAGE=${KOKORO_TTS_DEFAULT_LANGUAGE:-es}
+      - DEFAULT_VOICE=${KOKORO_TTS_DEFAULT_VOICE:-ef_dora}
+      - DEBUG_AUDIO=${KOKORO_TTS_DEBUG_AUDIO:-true}
+    ports:
+      - "${KOKORO_TTS_HOST_PORT:-5002}:${KOKORO_TTS_FLASK_PORT:-5002}"
+    volumes:
+      - ${KOKORO_TTS_MODELS_PATH:-./puertocho-assistant-server/kokoro-tts-ms/app/models}:/app/models:ro
+      - ${KOKORO_TTS_DEBUG_AUDIO_PATH:-./puertocho-assistant-server/kokoro-tts-ms/debug_audio}:/app/debug_audio
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${KOKORO_TTS_GPU_COUNT:-1}
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${KOKORO_TTS_FLASK_PORT:-5002}/health"]
+      interval: ${KOKORO_TTS_HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${KOKORO_TTS_HEALTHCHECK_TIMEOUT:-10s}
+      retries: ${KOKORO_TTS_HEALTHCHECK_RETRIES:-3}
+      start_period: ${KOKORO_TTS_HEALTHCHECK_START_PERIOD:-60s}
+    networks:
+      - puertocho-assistant-network
+    profiles:
+      - tts-stack
+      - full
+      - kokoro-only

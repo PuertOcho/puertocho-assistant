@@ -1,0 +1,25 @@
+services:
+  whisper-api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: whisper-api
+    # Habilita acceso a la GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES}
+      - WHISPER_MODEL=${WHISPER_MODEL}
+      - FLASK_HOST=${FLASK_HOST}
+      - FLASK_PORT=${FLASK_PORT}
+      - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-es}
+      - DEBUG_AUDIO=${DEBUG_AUDIO:-true}
+    ports:
+      - "${API_PORT}:${API_PORT}"
+    volumes:
+      - ./debug_audio:/app/debug_audio
