@@ -185,6 +185,40 @@ services:
     networks:
       - puertocho-assistant-network
 
+  puertocho-assistant-nlu:
+    build:
+      context: ./puertocho-assistant-server/nlu-ms
+      dockerfile: Dockerfile
+    container_name: ${NLU_SERVICE:-puertocho-nlu}
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "${NLU_PORT:-5001}:5001"
+    volumes:
+      - ./puertocho-assistant-server/nlu-ms/server:/root/server
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - puertocho-assistant-network
+    profiles:
+      - nlu-stack
+      - full
+
   puertocho-assistant-intent-manager:
     build:
       context: ./puertocho-assistant-server/intentmanagerms
@@ -211,6 +245,9 @@ services:
       - TTS_FALLBACK_SERVICE=${FALLBACK_TTS_SERVICE:-kokoro_tts}
       - TTS_DEFAULT_VOICE=${AZURE_TTS_DEFAULT_VOICE:-Abril}
       - TTS_DEFAULT_LANGUAGE=${AZURE_TTS_DEFAULT_LANGUAGE:-es-ES}
+      
+      # Configuración del servicio NLU
+      - NLU_URL=${NLU_URL:-http://puertocho-assistant-nlu:5001}
     ports:
       - "9904:9904"
     restart: unless-stopped

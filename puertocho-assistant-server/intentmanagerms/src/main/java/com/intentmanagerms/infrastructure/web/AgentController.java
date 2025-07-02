@@ -63,6 +63,35 @@ public class AgentController {
         ));
     }
 
+    @GetMapping("/test-nlu")
+    public ResponseEntity<Response> testNlu() {
+        try {
+            // Simple test que no depende de beans específicos
+            String result = "NLU Service test endpoint funcionando";
+            
+            Response response = new Response(
+                true, 
+                result, 
+                null, 
+                LocalDateTime.now()
+            );
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("Error en test NLU: {}", e.getMessage(), e);
+            
+            Response errorResponse = new Response(
+                false, 
+                null, 
+                "Error en test NLU: " + e.getMessage(), 
+                LocalDateTime.now()
+            );
+            
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
     // DTOs con validación
     public record Request(
         @NotBlank(message = "El prompt no puede estar vacío")

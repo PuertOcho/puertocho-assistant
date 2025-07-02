@@ -1,0 +1,23 @@
+services:
+  taiga-mcp-api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: taiga-mcp-api
+    environment:
+      - FLASK_HOST=${FLASK_HOST:-0.0.0.0}
+      - FLASK_PORT=${FLASK_PORT:-5000}
+      - TAIGA_HOST=${TAIGA_HOST:-http://host.docker.internal:9000}
+      - TAIGA_USERNAME=${TAIGA_USERNAME:-puertocho}
+      - TAIGA_PASSWORD=${TAIGA_PASSWORD:-puertocho}
+      - SESSION_EXPIRY=${SESSION_EXPIRY:-28800}
+    ports:
+      - "${API_PORT:-5007}:${FLASK_PORT:-5000}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - taiga-network
+
+networks:
+  taiga-network:
+    external: true 

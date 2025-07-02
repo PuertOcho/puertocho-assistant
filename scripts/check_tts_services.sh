@@ -197,33 +197,33 @@ main() {
     # Determinar qué servicios habilitar
     if [[ "${services_healthy[whisper]:-false}" == "true" ]]; then
         print_status $GREEN "✅ Whisper STT disponible (${services_running[whisper]})"
-        export WHISPER_URL="http://localhost:$WHISPER_API_PORT"
+        export WHISPER_URL="http://host.docker.internal:$WHISPER_API_PORT"
     else
         print_status $YELLOW "⚠️  Whisper STT no disponible - habilitando en docker-compose"
         export ENABLE_WHISPER="true"
-        export WHISPER_URL="http://puertocho-assistant-whisper:${WHISPER_FLASK_PORT:-5000}"
+        export WHISPER_URL="http://host.docker.internal:${WHISPER_API_PORT:-5000}"
     fi
     
     # Lógica para Azure TTS (servicio principal)
     if [[ "${services_healthy[azure_tts]:-false}" == "true" ]]; then
         print_status $GREEN "✅ Azure TTS disponible como servicio principal (${services_running[azure_tts]})"
         export PRIMARY_TTS_SERVICE="azure_tts"
-        export AZURE_TTS_URL="http://localhost:$AZURE_TTS_HOST_PORT"
+        export AZURE_TTS_URL="http://host.docker.internal:$AZURE_TTS_HOST_PORT"
     else
         print_status $YELLOW "⚠️  Azure TTS no disponible - habilitando en docker-compose"
         export ENABLE_AZURE_TTS="true"
-        export AZURE_TTS_URL="http://puertocho-assistant-azure-tts:${AZURE_TTS_CONTAINER_PORT:-5000}"
+        export AZURE_TTS_URL="http://host.docker.internal:${AZURE_TTS_HOST_PORT:-5004}"
     fi
     
     # Lógica para Kokoro TTS (servicio fallback)
     if [[ "${services_healthy[kokoro_tts]:-false}" == "true" ]]; then
         print_status $GREEN "✅ Kokoro TTS disponible como servicio fallback (${services_running[kokoro_tts]})"
         export FALLBACK_TTS_SERVICE="kokoro_tts"
-        export KOKORO_TTS_URL="http://localhost:$KOKORO_TTS_HOST_PORT"
+        export KOKORO_TTS_URL="http://host.docker.internal:$KOKORO_TTS_HOST_PORT"
     else
         print_status $YELLOW "⚠️  Kokoro TTS no disponible - habilitando en docker-compose"
         export ENABLE_KOKORO_TTS="true"
-        export KOKORO_TTS_URL="http://puertocho-assistant-kokoro-tts:${KOKORO_TTS_FLASK_PORT:-5002}"
+        export KOKORO_TTS_URL="http://host.docker.internal:${KOKORO_TTS_HOST_PORT:-5002}"
     fi
     
     # F5-TTS deshabilitado permanentemente

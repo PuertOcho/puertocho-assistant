@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Service
+//@Service  // Deshabilitado temporalmente para usar SmartAssistantService
 public class AssistantService implements Assistant {
 
     private final ChatLanguageModel chatLanguageModel;
