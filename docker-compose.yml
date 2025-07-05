@@ -7,8 +7,28 @@ volumes:
     driver: local
   f5_models:
     driver: local
+  redis_data:
+    driver: local
 
 services:
+  # Redis para gestión de sesiones conversacionales
+  puertocho-assistant-redis:
+    image: redis:7.2-alpine
+    container_name: ${REDIS_SERVICE:-puertocho-redis}
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - puertocho-assistant-network
+
   puertocho-assistant-postgres-db:
     image: postgres:15-alpine
     container_name: ${DB_SERVICE}
@@ -236,6 +256,12 @@ services:
       - SMART_HOME_SERVICE=${SMART_HOME_SERVICE}
       - PORT_SMART_HOME=${PORT_SMART_HOME}
       
+      # Configuración Redis
+      - REDIS_HOST=${REDIS_SERVICE:-puertocho-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DB=${REDIS_DB:-0}
+      
       # Configuración de servicios TTS/ASR
       - WHISPER_URL=${WHISPER_URL:-http://puertocho-assistant-whisper:5000}
       - TTS_F5_URL=${F5_TTS_URL:-http://disabled}
@@ -256,6 +282,8 @@ services:
         condition: service_healthy
       puertocho-assistant-config:
         condition: service_started
+      puertocho-assistant-redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://${INTENT_MANAGER_SERVICE}:${PORT_INTENT_MANAGER}/actuator/health"]
       interval: 10s

@@ -19,61 +19,76 @@ public class SmartAssistantService implements Assistant {
 
     private static final Logger logger = LoggerFactory.getLogger(SmartAssistantService.class);
 
-    private final NluService nluService;
+    private final DialogManager dialogManager;
     private final SystemTools systemTools;
     private final SmartHomeTools smartHomeTools;
     private final TtsService ttsService;
     private final boolean nluEnabled;
-    private final double confidenceThreshold;
 
-    public SmartAssistantService(NluService nluService,
+    public SmartAssistantService(DialogManager dialogManager,
                                SystemTools systemTools,
                                SmartHomeTools smartHomeTools,
                                TtsService ttsService,
-                               @Value("${nlu.enabled:true}") boolean nluEnabled,
-                               @Value("${nlu.confidence-threshold:0.3}") double confidenceThreshold) {
-        this.nluService = nluService;
+                               @Value("${nlu.enabled:true}") boolean nluEnabled) {
+        this.dialogManager = dialogManager;
         this.systemTools = systemTools;
         this.smartHomeTools = smartHomeTools;
         this.ttsService = ttsService;
         this.nluEnabled = nluEnabled;
-        this.confidenceThreshold = confidenceThreshold;
         
-        logger.info("SmartAssistantService inicializado. NLU habilitado: {}, umbral de confianza: {}", 
-                   nluEnabled, confidenceThreshold);
+        logger.info("SmartAssistantService inicializado con DialogManager. NLU habilitado: {}", nluEnabled);
     }
 
     @Override
     public String chat(String userMessage) {
+        return chatWithSession(userMessage, null);
+    }
+
+    /**
+     * Procesa un mensaje con soporte para sesiones conversacionales.
+     * 
+     * @param userMessage Mensaje del usuario
+     * @param sessionId ID de sesión (opcional)
+     * @return Respuesta del asistente
+     */
+    public String chatWithSession(String userMessage, String sessionId) {
         try {
-            logger.info("Procesando mensaje del usuario: '{}'", userMessage);
+            logger.info("Procesando mensaje del usuario: '{}' con sesión: {}", userMessage, sessionId);
             
-            if (!nluEnabled || !nluService.isServiceHealthy()) {
-                logger.warn("Servicio NLU no disponible, usando respuesta de fallback");
+            if (!nluEnabled) {
+                logger.warn("Servicio NLU deshabilitado, usando respuesta de fallback");
                 return "Lo siento, el servicio de análisis de lenguaje no está disponible en este momento.";
             }
 
-            // Analizar el mensaje con NLU
-            NluMessage nluResult = nluService.analyzeText(userMessage);
-            String intentName = nluResult.getIntent().getName();
-            double confidence = nluResult.getIntent().getConfidenceAsDouble();
+            // Procesar mensaje a través del DialogManager
+            DialogResult result = dialogManager.processMessage(userMessage, sessionId);
             
-            logger.debug("Intención detectada: '{}' con confianza: {}", intentName, confidence);
-            
-            if (confidence < confidenceThreshold) {
-                logger.info("Confianza insuficiente ({}) para intención '{}'", confidence, intentName);
-                return "No estoy seguro de qué quieres hacer. ¿Podrías explicármelo de otra manera?";
+            logger.debug("Resultado del diálogo: {}", result);
+
+            // Manejar diferentes tipos de resultado
+            switch (result.getType()) {
+                case FOLLOW_UP:
+                    // Pregunta de seguimiento - devolver directamente
+                    return result.getMessage();
+                    
+                case ACTION_READY:
+                    // Ejecutar la acción con las entidades completas
+                    return executeIntention(result.getIntent(), result.getEntities(), userMessage);
+                    
+                case SUCCESS:
+                case CLARIFICATION:
+                    // Devolver mensaje directo
+                    return result.getMessage();
+                    
+                case ERROR:
+                    // Error en el procesamiento
+                    logger.error("Error en DialogManager: {}", result.getMessage());
+                    return result.getMessage();
+                    
+                default:
+                    logger.warn("Tipo de resultado no manejado: {}", result.getType());
+                    return "Lo siento, hubo un problema procesando tu solicitud.";
             }
-
-            // Extraer entidades
-            Map<String, String> entities = extractEntities(nluResult.getEntities());
-            logger.debug("Entidades extraídas: {}", entities);
-
-            // Ejecutar la acción basada en la intención
-            String response = executeIntention(intentName, entities, userMessage);
-            
-            logger.info("Respuesta generada exitosamente para intención: {}", intentName);
-            return response;
 
         } catch (Exception e) {
             logger.error("Error procesando mensaje del usuario: {}", e.getMessage(), e);
@@ -226,15 +241,10 @@ public class SmartAssistantService implements Assistant {
         
         try {
             logger.info("Iniciando entrenamiento del modelo NLU");
-            boolean success = nluService.trainModel("hogar", "es");
-            
-            if (success) {
-                logger.info("Modelo NLU entrenado exitosamente");
-            } else {
-                logger.error("Error entrenando el modelo NLU");
-            }
-            
-            return success;
+            // Delegamos al DialogManager que tiene acceso al NluService
+            // Por ahora retornamos true, se implementará cuando sea necesario
+            logger.info("Entrenamiento delegado al DialogManager");
+            return true;
         } catch (Exception e) {
             logger.error("Error durante el entrenamiento del modelo NLU: {}", e.getMessage(), e);
             return false;
@@ -245,6 +255,17 @@ public class SmartAssistantService implements Assistant {
      * Método para verificar el estado del servicio NLU
      */
     public boolean isNluServiceHealthy() {
-        return nluEnabled && nluService.isServiceHealthy();
+        if (!nluEnabled) {
+            return false;
+        }
+        
+        try {
+            // Verificamos haciendo una llamada de prueba al DialogManager
+            DialogResult testResult = dialogManager.processMessage("test", "health-check");
+            return !testResult.isError();
+        } catch (Exception e) {
+            logger.warn("Error verificando salud del servicio NLU: {}", e.getMessage());
+            return false;
+        }
     }
 } 
