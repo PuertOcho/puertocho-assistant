@@ -78,7 +78,7 @@ public class NluService {
                             .build())
                     .retrieve()
                     .bodyToMono(NluResponse.class)
-                    .timeout(Duration.ofSeconds(10))
+                    .timeout(Duration.ofSeconds(30))
                     .block();
             
             if (response == null) {
@@ -148,7 +148,7 @@ public class NluService {
                             .build())
                     .retrieve()
                     .bodyToMono(NluResponse.class)
-                    .timeout(Duration.ofMinutes(5)) // El entrenamiento puede tomar tiempo
+                    .timeout(Duration.ofMinutes(10)) // El entrenamiento puede tomar tiempo
                     .block();
             
             boolean success = response != null && "TRAIN_SUCCESS".equals(response.getMessageId());
