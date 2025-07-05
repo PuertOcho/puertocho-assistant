@@ -28,21 +28,21 @@ Este documento desglosa las tareas necesarias para evolucionar la plataforma hac
 | T1.1 | Diseñar `ConversationState` (session Id → contexto) almacenado en Redis con TTL. | T0.2 | ✅ |
 | T1.2 | Crear clase `DialogManager` que detecte entidades faltantes y genere preguntas de seguimiento. | T1.1 | ✅ |
 | T1.3 | Refactorizar `SmartAssistantService` → delegue en `DialogManager` antes de ejecutar acciones. | T1.2 | ✅ |
-| T1.4 | Tests unitarios y de integración multivuelta. | T1.3, T0.4 | ⏳ |
+| T1.4 | Tests unitarios y de integración multivuelta. | T1.3, T0.4 | ✅ |
 
 ## Epic 2 – API pública vía Gateway
 | ID | Descripción | Dependencias | Estado |
 |----|-------------|--------------|--------|
-| T2.1 | Definir contrato REST `/assistant/chat` (JSON: prompt, sessionId). | – | ⏳ |
-| T2.2 | Añadir route en `gatewayms` y config en `configms`. | T2.1, T0.3 | ⏳ |
-| T2.3 | Agregar Swagger/OpenAPI docs centralizadas. | T2.2 | ⏳ |
+| T2.1 | Definir contrato REST `/assistant/chat` (JSON: prompt, sessionId). | – | ✅ |
+| T2.2 | Añadir route en `gatewayms` y config en `configms`. | T2.1, T0.3 | ✅ |
+| T2.3 | Agregar Swagger/OpenAPI docs centralizadas. | T2.2 | ✅ |
 
 ## Epic 3 – Cliente Raspberry Pi (wake-word-porcupine-version)
 | ID | Descripción | Dependencias | Estado |
 |----|-------------|--------------|--------|
-| T3.1 | Sustituir llamada directa al servicio de transcripción por petición a `/assistant/chat`. | T2.1 | ⏳ |
-| T3.2 | Procesar respuesta: texto, parámetros opcionales, URL audio TTS. | T3.1 | ⏳ |
-| T3.3 | Integrar reproducción de audio (usar `mpv` o `pydub`). | T3.2 | ⏳ |
+| T3.1 | Sustituir llamada directa al servicio de transcripción por petición a `/assistant/chat`. | T2.1 | ✅ |
+| T3.2 | Procesar respuesta: texto, parámetros opcionales, URL audio TTS. | T3.1 | ✅ |
+| T3.3 | Integrar reproducción de audio (usar `mpv` o `pydub`). | T3.2 | ✅ |
 
 ## Epic 4 – Integración de herramientas MCP
 | ID | Tool | Descripción | Estado |
