@@ -50,4 +50,33 @@ class TaigaToolsTest {
 
         mockServer.verify();
     }
+
+    @Test
+    void crearHistoriaYEpicYAccionCompleja() {
+        // Mock login
+        mockServer.expect(once(), requestTo("http://localhost:5007/login"))
+                .andRespond(withSuccess("{\"session_id\":\"sid-123\"}", MediaType.APPLICATION_JSON));
+
+        // Registrar TODAS las expectativas antes de ejecutar llamadas
+        mockServer.expect(once(), requestTo("http://localhost:5007/projects/42/user_stories"))
+                .andExpect(method(org.springframework.http.HttpMethod.POST))
+                .andRespond(withSuccess("{\"id\":10,\"ref\":\"#10\",\"subject\":\"Demo story\"}", MediaType.APPLICATION_JSON));
+
+        mockServer.expect(once(), requestTo("http://localhost:5007/projects/42/epics"))
+                .andRespond(withSuccess("{\"id\":5,\"subject\":\"Epic Demo\"}", MediaType.APPLICATION_JSON));
+
+        mockServer.expect(once(), requestTo("http://localhost:5007/execute_complex_action"))
+                .andRespond(withSuccess("{\"action_text\":\"hacer algo\"}", MediaType.APPLICATION_JSON));
+
+        // Ejecuciones
+        String resStory = taigaTools.crearHistoriaTaiga(42, "Demo story text");
+        String resEpic = taigaTools.crearEpicTaiga(42, "Epic Demo", "#ff0000");
+        String resAction = taigaTools.ejecutarAccionComplejaTaiga("hacer algo", 42);
+
+        assertTrue(resStory.contains("Historia creada"));
+        assertTrue(resEpic.contains("Epic creado"));
+        assertTrue(resAction.contains("Acción ejecutada"));
+
+        mockServer.verify();
+    }
 } 

@@ -119,6 +119,101 @@ public class TaigaTools {
         }
     }
 
+    /**
+     * Crea una historia de usuario en un proyecto Taiga.
+     */
+    @Tool("Crea una historia de usuario en Taiga usando el ID de proyecto y el texto proporcionado.")
+    public String crearHistoriaTaiga(Integer projectId, String historiaTexto) {
+        try {
+            ensureSession();
+            if (projectId == null || historiaTexto == null || historiaTexto.isBlank()) {
+                return "Error: projectId y texto de la historia son obligatorios";
+            }
+            String url = baseUrl + "/projects/" + projectId + "/user_stories";
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("session_id", sessionId);
+            payload.put("subject", historiaTexto.length() > 80 ? historiaTexto.substring(0, 80) : historiaTexto);
+            payload.put("description", historiaTexto);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                return "Error al crear historia: HTTP " + response.getStatusCode().value();
+            }
+            Map<String, Object> story = response.getBody();
+            return "✅ Historia creada: #" + story.get("ref") + " – " + story.get("subject");
+        } catch (Exception e) {
+            logger.error("Error creando historia Taiga: {}", e.getMessage());
+            return "Error creando historia en Taiga: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Crea un epic en Taiga.
+     */
+    @Tool("Crea un epic en Taiga usando ID de proyecto, título y color opcional (#RRGGBB o nombre).")
+    public String crearEpicTaiga(Integer projectId, String tituloEpic, String colorHex) {
+        try {
+            ensureSession();
+            if (projectId == null || tituloEpic == null || tituloEpic.isBlank()) {
+                return "Error: projectId y título del epic son obligatorios";
+            }
+            String url = baseUrl + "/projects/" + projectId + "/epics";
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("session_id", sessionId);
+            payload.put("subject", tituloEpic);
+            payload.put("description", "Epic creado desde Assistant");
+            if (colorHex != null && !colorHex.isBlank()) payload.put("color", colorHex);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                return "Error al crear epic: HTTP " + response.getStatusCode().value();
+            }
+            Map<String, Object> epic = response.getBody();
+            return "✅ Epic creado: " + epic.get("subject") + " (ID: " + epic.get("id") + ")";
+        } catch (Exception e) {
+            logger.error("Error creando epic Taiga: {}", e.getMessage());
+            return "Error creando epic en Taiga: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Ejecuta una acción compleja en Taiga MCP usando texto natural.
+     */
+    @Tool("Ejecuta una acción compleja en Taiga utilizando el endpoint /execute_complex_action.")
+    public String ejecutarAccionComplejaTaiga(String accionTexto, Integer projectId) {
+        try {
+            ensureSession();
+            if (accionTexto == null || accionTexto.isBlank()) {
+                return "Error: el texto de la acción es obligatorio";
+            }
+            String url = baseUrl + "/execute_complex_action";
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("session_id", sessionId);
+            payload.put("action_text", accionTexto);
+            if (projectId != null) payload.put("project_id", projectId);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                return "Error en acción compleja: HTTP " + response.getStatusCode().value();
+            }
+            Map<String, Object> result = response.getBody();
+            if (result == null) return "Acción ejecutada pero respuesta vacía.";
+            return "✅ Acción ejecutada. Resultado: " + result.get("action_text");
+        } catch (Exception e) {
+            logger.error("Error ejecutando acción compleja Taiga: {}", e.getMessage());
+            return "Error ejecutando acción compleja Taiga: " + e.getMessage();
+        }
+    }
+
     // ===================== Helpers ===================== //
 
     private void ensureSession() {

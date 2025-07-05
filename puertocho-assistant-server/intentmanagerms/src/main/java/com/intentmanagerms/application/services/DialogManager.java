@@ -30,13 +30,15 @@ public class DialogManager {
         "encender_luz", Set.of("lugar"),
         "apagar_luz", Set.of("lugar"),
         "reproducir_musica", Set.of(), // Sin entidades obligatorias
-        "consultar_tiempo", Set.of("ubicacion")
+        "consultar_tiempo", Set.of("ubicacion"),
+        "accion_compleja_taiga", Set.of("proyecto")
     );
 
     // Plantillas de preguntas para entidades faltantes
     private static final Map<String, String> ENTITY_QUESTIONS = Map.of(
         "lugar", "¿En qué habitación quieres que %s?",
         "ubicacion", "¿De qué ciudad quieres consultar el tiempo?",
+        "proyecto", "¿Sobre qué proyecto quieres que %s?",
         "artista", "¿Qué artista quieres escuchar?",
         "genero", "¿Qué género musical prefieres?"
     );
@@ -121,7 +123,7 @@ public class DialogManager {
         String intent = nluResult.getIntent().getName();
         
         // Verificar confianza mínima
-        if (confidence < 0.3) {
+        if (confidence < 0.25) {
             logger.info("Confianza insuficiente ({}) para intención '{}'", confidence, intent);
             return DialogResult.clarification("No estoy seguro de qué quieres hacer. ¿Podrías explicármelo de otra manera?");
         }
@@ -241,6 +243,7 @@ public class DialogManager {
             case "apagar_luz" -> "apague la luz";
             case "reproducir_musica" -> "reproduzca música";
             case "consultar_tiempo" -> "consulte el tiempo";
+            case "accion_compleja_taiga" -> "ejecute la acción";
             default -> "realice la acción";
         };
     }

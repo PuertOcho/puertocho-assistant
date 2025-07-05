@@ -14,6 +14,7 @@ import static org.mockito.Mockito.*;
 
 import com.intentmanagerms.application.tools.SystemTools;
 import com.intentmanagerms.application.tools.SmartHomeTools;
+import com.intentmanagerms.application.tools.TaigaTools;
 
 class SmartAssistantServiceTest {
 
@@ -25,13 +26,15 @@ class SmartAssistantServiceTest {
     private SmartHomeTools smartHomeTools;
     @Mock
     private TtsService ttsService;
+    @Mock
+    private TaigaTools taigaTools;
 
     private SmartAssistantService assistant;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        assistant = new SmartAssistantService(dialogManager, systemTools, smartHomeTools, ttsService, true);
+        assistant = new SmartAssistantService(dialogManager, systemTools, smartHomeTools, ttsService, taigaTools, true);
     }
 
     @Test
@@ -61,5 +64,15 @@ class SmartAssistantServiceTest {
         String response = assistant.chat("algo");
 
         assertEquals("Error interno", response);
+    }
+
+    @Test
+    void cuandoAccionComplejaSinProjectId_ejecutaYDevuelveRespuestaTaiga() {
+        DialogResult dr = DialogResult.actionReady("accion_compleja_taiga", java.util.Map.of(), "sid");
+        when(dialogManager.processMessage(eq("Generar reporte"), any())).thenReturn(dr);
+        when(taigaTools.ejecutarAccionComplejaTaiga("Generar reporte", null)).thenReturn("Reporte generado");
+
+        String response = assistant.chat("Generar reporte");
+        assertEquals("Reporte generado", response);
     }
 } 

@@ -4,6 +4,7 @@ import com.intentmanagerms.application.services.dto.NluEntity;
 import com.intentmanagerms.application.services.dto.NluMessage;
 import com.intentmanagerms.application.tools.SmartHomeTools;
 import com.intentmanagerms.application.tools.SystemTools;
+import com.intentmanagerms.application.tools.TaigaTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,17 +24,20 @@ public class SmartAssistantService implements Assistant {
     private final SystemTools systemTools;
     private final SmartHomeTools smartHomeTools;
     private final TtsService ttsService;
+    private final TaigaTools taigaTools;
     private final boolean nluEnabled;
 
     public SmartAssistantService(DialogManager dialogManager,
                                SystemTools systemTools,
                                SmartHomeTools smartHomeTools,
                                TtsService ttsService,
+                               TaigaTools taigaTools,
                                @Value("${nlu.enabled:true}") boolean nluEnabled) {
         this.dialogManager = dialogManager;
         this.systemTools = systemTools;
         this.smartHomeTools = smartHomeTools;
         this.ttsService = ttsService;
+        this.taigaTools = taigaTools;
         this.nluEnabled = nluEnabled;
         
         logger.info("SmartAssistantService inicializado con DialogManager. NLU habilitado: {}", nluEnabled);
@@ -147,6 +151,10 @@ public class SmartAssistantService implements Assistant {
                 case "poner_alarma":
                 case "cancelar_alarma":
                     return "La funcionalidad de alarmas estará disponible próximamente.";
+                
+                // Intención MCP – acción compleja Taiga
+                case "accion_compleja_taiga":
+                    return handleAccionComplejaTaiga(entities, originalMessage);
                 
                 default:
                     logger.warn("Intención no reconocida: {}", intentName);
@@ -267,5 +275,18 @@ public class SmartAssistantService implements Assistant {
             logger.warn("Error verificando salud del servicio NLU: {}", e.getMessage());
             return false;
         }
+    }
+
+    private String handleAccionComplejaTaiga(Map<String, String> entities, String originalMessage) {
+        Integer projectId = null;
+        if (entities != null && entities.containsKey("proyecto")) {
+            String value = entities.get("proyecto");
+            try {
+                projectId = Integer.valueOf(value.replaceAll("[^0-9]", ""));
+            } catch (NumberFormatException ignored) {
+                // nombre, no id
+            }
+        }
+        return taigaTools.ejecutarAccionComplejaTaiga(originalMessage, projectId);
     }
 } 
