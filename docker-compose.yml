@@ -129,6 +129,8 @@ services:
       - CORS_ALLOWED_HEADERS=${CORS_ALLOWED_HEADERS}
       - CORS_ALLOW_CREDENTIALS=${CORS_ALLOW_CREDENTIALS}
       - CORS_MAX_AGE=${CORS_MAX_AGE}
+      - TAIGA_MCP_SERVICE=${TAIGA_MCP_SERVICE}
+      - TAIGA_MCP_FLASK_PORT=${TAIGA_MCP_FLASK_PORT}
     ports:
       - "${PORT_GATEWAY}:${PORT_GATEWAY}"
     restart: unless-stopped
@@ -403,3 +405,26 @@ services:
       - tts-stack
       - full
       - kokoro-only
+
+  puertocho-assistant-taiga-mcp:
+    build:
+      context: ./puertocho-assistant-server/taiga-mcp-ms/app
+      dockerfile: Dockerfile
+    container_name: ${TAIGA_MCP_SERVICE:-taiga-mcp-api}
+    environment:
+      - FLASK_HOST=${TAIGA_MCP_FLASK_HOST:-0.0.0.0}
+      - FLASK_PORT=${TAIGA_MCP_FLASK_PORT:-5000}
+      - TAIGA_HOST=${TAIGA_HOST:-http://host.docker.internal:9000}
+      - TAIGA_USERNAME=${TAIGA_USERNAME:-puertocho}
+      - TAIGA_PASSWORD=${TAIGA_PASSWORD:-puertocho}
+      - SESSION_EXPIRY=${TAIGA_SESSION_EXPIRY:-28800}
+    ports:
+      - "${TAIGA_MCP_HOST_PORT:-5007}:${TAIGA_MCP_FLASK_PORT:-5000}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - puertocho-assistant-network
+    profiles:
+      - mcp-stack
+      - full
