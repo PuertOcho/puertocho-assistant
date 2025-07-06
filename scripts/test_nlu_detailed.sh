@@ -37,7 +37,7 @@ test_prediction() {
   ENCODED=$(echo "$text" | perl -MURI::Escape -ne 'chomp; print uri_escape($_)')
   
   # Realizar predicción
-  RESPONSE=$(curl -s -X POST "http://localhost:5001/predict?domain=hogar&locale=es&userUtterance=${ENCODED}")
+  RESPONSE=$(curl -s -X POST "http://localhost:5001/predict?domain=intents&locale=es&userUtterance=${ENCODED}")
   
   # Parsear respuesta
   INTENT=$(echo "$RESPONSE" | jq -r '.message' | jq -r '.intent.name')
@@ -62,7 +62,7 @@ test_prediction() {
 
 # Entrenar modelo si es necesario
 print_info "Verificando entrenamiento del modelo..."
-TRAIN_RESPONSE=$(curl -s -X POST "http://localhost:5001/train?domain=hogar&locale=es")
+TRAIN_RESPONSE=$(curl -s -X POST "http://localhost:5001/train?domain=intents&locale=es")
 TRAIN_STATUS=$(echo "$TRAIN_RESPONSE" | jq -r '.messageId')
 if [ "$TRAIN_STATUS" == "TRAIN_SUCCESS" ]; then
   print_ok "Modelo entrenado correctamente"

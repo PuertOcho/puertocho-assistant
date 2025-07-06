@@ -28,7 +28,7 @@ check_file() {
 }
 
 check_file "puertocho-assistant-server/nlu-ms/Dockerfile"
-check_file "puertocho-assistant-server/nlu-ms/server/training_data/intents/hogar_es.yml"
+check_file "puertocho-assistant-server/nlu-ms/server/training_data/intents/intents_es.yml"
 check_file "puertocho-assistant-server/nlu-ms/server/core/config/es_spacy_diet.yml"
 check_file "puertocho-assistant-server/nlu-ms/server/config/nlp.properties"
 check_file "puertocho-assistant-server/intentmanagerms/src/main/java/com/intentmanagerms/application/services/NluService.java"

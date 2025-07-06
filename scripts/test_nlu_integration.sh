@@ -38,7 +38,7 @@ if ! command -v jq &> /dev/null; then
   print_fail "'jq' no está instalado (requerido para parsear JSON)"
 fi
 
-TRAIN=$(curl -s -X POST "http://localhost:5001/train?domain=hogar&locale=es" | jq -r '.messageId')
+TRAIN=$(curl -s -X POST "http://localhost:5001/train?domain=intents&locale=es" | jq -r '.messageId')
 [ "$TRAIN" == "TRAIN_SUCCESS" ] && print_ok "Entrenamiento OK" || print_fail "Entrenamiento falló"
 
 # 4. Probar predicciones directas
@@ -52,7 +52,7 @@ readarray -t TESTS < <(printf '%s
 for t in "${TESTS[@]}"; do
   # Codificar URL usando perl (disponible por defecto en la mayoría de sistemas)
   ENCODED=$(echo "$t" | perl -MURI::Escape -ne 'chomp; print uri_escape($_)')
-  OUT=$(curl -s -X POST "http://localhost:5001/predict?domain=hogar&locale=es&userUtterance=${ENCODED}" | jq -r '.messageId')
+  OUT=$(curl -s -X POST "http://localhost:5001/predict?domain=intents&locale=es&userUtterance=${ENCODED}" | jq -r '.messageId')
   [ "$OUT" == "PREDICT" ] && print_ok "🧪 '$t'" || print_fail "Predicción falló para '$t'"
 done
 

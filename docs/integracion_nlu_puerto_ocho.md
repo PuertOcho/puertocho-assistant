@@ -36,7 +36,7 @@ puertocho-assistant/
    * Descarga modelo **spaCy español** y corpora NLTK (`stopwords`, `punkt`).
 4. **Pipeline** (`server/core/config/es_spacy_diet.yml`):
    * `SpacyNLP` → `SpacyTokenizer` → `SpacyFeaturizer` → `RegexFeaturizer` → `LexicalSyntacticFeaturizer` → `CountVectors` → `DIETClassifier`.
-5. **Datos de entrenamiento** (`server/training_data/intents/hogar_es.yml`): 15 intenciones, 121 frases.
+5. **Datos de entrenamiento** (`server/training_data/intents/intents_es.yml`): 15 intenciones, 121 frases.
 6. **docker-compose** (`puertocho-assistant-server/nlu-ms/docker-compose.yml`): expone **puerto 5001** y define health-check `GET /health`.
 
 ---
@@ -45,11 +45,11 @@ puertocho-assistant/
 
 ```bash
 # Contenedor en ejecución primero
-curl -X POST "http://localhost:5001/train?domain=hogar&locale=es"
+curl -X POST "http://localhost:5001/train?domain=intents&locale=es"
 ```
 Devuelve:
 ```json
-{"messageId":"TRAIN_SUCCESS","domain":"hogar","locale":"es"}
+{"messageId":"TRAIN_SUCCESS","domain":"intents","locale":"es"}
 ```
 
 ---
@@ -73,7 +73,7 @@ Devuelve:
 ```yaml
 nlu:
   url: ${NLU_URL:http://localhost:5001}
-  domain: hogar
+  domain: intents
   locale: es
   enabled: true
   confidence-threshold: 0.3
@@ -118,7 +118,7 @@ Salidas esperadas (resumen):
 
 ## 7. Mantenimiento
 
-1. **Añadir nuevas intenciones**: editar `hogar_es.yml` (o crear nuevo dominio) y volver a entrenar.
+1. **Añadir nuevas intenciones**: editar `intents_es.yml` (o crear nuevo dominio) y volver a entrenar.
 2. **Cambiar umbral de confianza**: modificar `confidence-threshold` en Config Server.
 3. **Actualizar dependencias**: `server/requirements.txt` en nlu-ms y `pom.xml` en intentmanagerms.
 

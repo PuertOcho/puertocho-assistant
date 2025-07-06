@@ -21,7 +21,7 @@ public class SmartHomeTools {
         System.out.println("Ejecutando 'encenderLuz' para la habitación: " + habitacion);
         
         if (!smartHomeEnabled) {
-            return "Error: El sistema de hogar inteligente no está habilitado en la configuración.";
+            return "Error: El sistema de intents inteligente no está habilitado en la configuración.";
         }
 
         try {
@@ -46,7 +46,7 @@ public class SmartHomeTools {
         System.out.println("Ejecutando 'apagarLuz' para la habitación: " + habitacion);
         
         if (!smartHomeEnabled) {
-            return "Error: El sistema de hogar inteligente no está habilitado en la configuración.";
+            return "Error: El sistema de intents inteligente no está habilitado en la configuración.";
         }
 
         try {

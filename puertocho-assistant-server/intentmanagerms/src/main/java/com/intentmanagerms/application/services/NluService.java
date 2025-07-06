@@ -23,11 +23,13 @@ public class NluService {
     private final String nluUrl;
     private final String defaultDomain;
     private final String defaultLocale;
+    private final LlmIntentClassifierService llmClassifier;
     
     public NluService(WebClient.Builder webClientBuilder,
                      @Value("${nlu.url:http://localhost:5001}") String nluUrl,
-                     @Value("${nlu.domain:hogar}") String defaultDomain,
-                     @Value("${nlu.locale:es}") String defaultLocale) {
+                     @Value("${nlu.domain:intents}") String defaultDomain,
+                     @Value("${nlu.locale:es}") String defaultLocale,
+                     LlmIntentClassifierService llmClassifier) {
         this.webClient = webClientBuilder
                 .baseUrl(nluUrl)
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1024)) // 1MB
@@ -36,6 +38,7 @@ public class NluService {
         this.nluUrl = nluUrl;
         this.defaultDomain = defaultDomain;
         this.defaultLocale = defaultLocale;
+        this.llmClassifier = llmClassifier;
         
         logger.info("NluService inicializado con URL: {}, dominio: {}, idioma: {}", 
                    nluUrl, defaultDomain, defaultLocale);
@@ -56,7 +59,7 @@ public class NluService {
      * Analiza el texto del usuario con dominio y idioma específicos.
      * 
      * @param userText El texto del usuario a analizar
-     * @param domain El dominio específico (ej: hogar, música, etc.)
+     * @param domain El dominio específico (ej: intents, música, etc.)
      * @param locale El idioma específico (ej: es, en, etc.)
      * @return NluMessage con la intención, entidades y información adicional
      * @throws NluServiceException Si ocurre un error durante el análisis
@@ -88,9 +91,19 @@ public class NluService {
             // Parsear el mensaje JSON interno
             NluMessage nluMessage = parseNluMessage(response.getMessage());
             
-            logger.debug("Intención detectada: {} con confianza: {}", 
-                        nluMessage.getIntent().getName(), 
-                        nluMessage.getIntent().getConfidence());
+            double conf = nluMessage.getIntent().getConfidenceAsDouble();
+            logger.debug("Intención detectada: {} con confianza: {}",
+                        nluMessage.getIntent().getName(), conf);
+            
+            // Fallback LLM si confianza baja
+            if (conf < 0.3) {
+                String llmIntent = llmClassifier.predictIntent(userText);
+                if (llmIntent != null) {
+                    logger.info("LLM clasificó la intención como '{}' (fallback)", llmIntent);
+                    nluMessage.getIntent().setName(llmIntent);
+                    nluMessage.getIntent().setConfidence("0.80");
+                }
+            }
             
             return nluMessage;
             
@@ -98,11 +111,39 @@ public class NluService {
             String errorMsg = String.format("Error HTTP %d al consultar NLU: %s", 
                                           e.getStatusCode().value(), e.getResponseBodyAsString());
             logger.error(errorMsg, e);
+            // Fallback al LLM si es posible
+            String llmIntent = llmClassifier.predictIntent(userText);
+            if (llmIntent != null) {
+                logger.warn("NLU devolvió {} – usando LLM para clasificar como '{}'", e.getStatusCode(), llmIntent);
+                NluMessage nm = new NluMessage();
+                com.intentmanagerms.application.services.dto.NluIntent ni = new com.intentmanagerms.application.services.dto.NluIntent();
+                ni.setName(llmIntent);
+                ni.setConfidence("0.80");
+                nm.setIntent(ni);
+                nm.setEntities(java.util.List.of());
+                nm.setIntentRanking(java.util.List.of());
+                nm.setText(userText);
+                return nm;
+            }
             throw new NluServiceException(errorMsg, e);
             
         } catch (Exception e) {
             String errorMsg = "Error inesperado al consultar el servicio NLU: " + e.getMessage();
             logger.error(errorMsg, e);
+            // Fallback total al LLM
+            String llmIntent = llmClassifier.predictIntent(userText);
+            if (llmIntent != null) {
+                logger.warn("NLU falló; usando LLM para clasificar como '{}'", llmIntent);
+                NluMessage nm = new NluMessage();
+                com.intentmanagerms.application.services.dto.NluIntent ni = new com.intentmanagerms.application.services.dto.NluIntent();
+                ni.setName(llmIntent);
+                ni.setConfidence("0.80");
+                nm.setIntent(ni);
+                nm.setEntities(java.util.List.of());
+                nm.setIntentRanking(java.util.List.of());
+                nm.setText(userText);
+                return nm;
+            }
             throw new NluServiceException(errorMsg, e);
         }
     }
