@@ -50,6 +50,11 @@ public class AssistantController {
             // Procesar mensaje con conversación multivuelta
             String assistantResponse = smartAssistantService.chatWithSession(request.message(), sessionId);
             
+            // Determinar el motor usado
+            String engine = smartAssistantService.isDuEnabled() ? "DU" : (smartAssistantService.isNluEnabled() ? "NLU" : "NONE");
+            java.util.Map<String, Object> metadata = new java.util.HashMap<>();
+            metadata.put("engine", engine);
+            
             // Generar audio TTS si se solicita
             String audioUrl = null;
             TtsService.TtsResponse ttsResponse = null;
@@ -89,7 +94,7 @@ public class AssistantController {
                 java.util.Map.of(), // extractedEntities (vacío por ahora)
                 java.util.Map.of(), // missingEntities (vacío por ahora)
                 null, // suggestedAction
-                java.util.Map.of() // metadata (vacío por ahora)
+                metadata
             );
             
             logger.info("Respuesta generada exitosamente para sesión: {}", sessionId);

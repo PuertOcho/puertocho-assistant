@@ -34,7 +34,7 @@ class SmartAssistantServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        assistant = new SmartAssistantService(dialogManager, systemTools, smartHomeTools, ttsService, taigaTools, true);
+        assistant = new SmartAssistantService(dialogManager, systemTools, smartHomeTools, ttsService, taigaTools, false, true);
     }
 
     @Test

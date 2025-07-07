@@ -26,21 +26,24 @@ public class SmartAssistantService implements Assistant {
     private final TtsService ttsService;
     private final TaigaTools taigaTools;
     private final boolean nluEnabled;
+    private final boolean duEnabled;
 
     public SmartAssistantService(DialogManager dialogManager,
                                SystemTools systemTools,
                                SmartHomeTools smartHomeTools,
                                TtsService ttsService,
                                TaigaTools taigaTools,
-                               @Value("${nlu.enabled:true}") boolean nluEnabled) {
+                               @Value("${nlu.enabled:false}") boolean nluEnabled,
+                               @Value("${du.enabled:true}") boolean duEnabled) {
         this.dialogManager = dialogManager;
         this.systemTools = systemTools;
         this.smartHomeTools = smartHomeTools;
         this.ttsService = ttsService;
         this.taigaTools = taigaTools;
         this.nluEnabled = nluEnabled;
+        this.duEnabled = duEnabled;
         
-        logger.info("SmartAssistantService inicializado con DialogManager. NLU habilitado: {}", nluEnabled);
+        logger.info("SmartAssistantService inicializado. NLU habilitado: {}, DU habilitado: {}", nluEnabled, duEnabled);
     }
 
     @Override
@@ -59,14 +62,20 @@ public class SmartAssistantService implements Assistant {
         try {
             logger.info("Procesando mensaje del usuario: '{}' con sesión: {}", userMessage, sessionId);
             
-            if (!nluEnabled) {
-                logger.warn("Servicio NLU deshabilitado, usando respuesta de fallback");
+            DialogResult result;
+            if (duEnabled) {
+                // Usar DU (nuevo motor)
+                logger.info("Usando DU para clasificación de intenciones");
+                result = dialogManager.processMessageWithDu(userMessage, sessionId);
+            } else if (nluEnabled) {
+                // Usar NLU clásico
+                logger.info("Usando NLU clásico para clasificación de intenciones");
+                result = dialogManager.processMessage(userMessage, sessionId);
+            } else {
+                logger.warn("Ningún motor de NLU/DU habilitado");
                 return "Lo siento, el servicio de análisis de lenguaje no está disponible en este momento.";
             }
 
-            // Procesar mensaje a través del DialogManager
-            DialogResult result = dialogManager.processMessage(userMessage, sessionId);
-            
             logger.debug("Resultado del diálogo: {}", result);
 
             // Manejar diferentes tipos de resultado
@@ -288,5 +297,13 @@ public class SmartAssistantService implements Assistant {
             }
         }
         return taigaTools.ejecutarAccionComplejaTaiga(originalMessage, projectId);
+    }
+
+    public boolean isDuEnabled() {
+        return duEnabled;
+    }
+
+    public boolean isNluEnabled() {
+        return nluEnabled;
     }
 } 

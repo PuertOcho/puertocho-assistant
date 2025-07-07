@@ -7,6 +7,8 @@ import com.intentmanagerms.domain.repository.ConversationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +26,7 @@ public class DialogManager {
 
     private final ConversationRepository conversationRepository;
     private final NluService nluService;
+    private final NluService duService;
 
     // Definición de entidades requeridas por intención
     private static final Map<String, Set<String>> INTENT_REQUIRED_ENTITIES = Map.of(
@@ -43,9 +46,11 @@ public class DialogManager {
         "genero", "¿Qué género musical prefieres?"
     );
 
-    public DialogManager(ConversationRepository conversationRepository, NluService nluService) {
+    public DialogManager(ConversationRepository conversationRepository, NluService nluService, @Value("${du.url:http://du-puertocho-ms:5005/model/parse}") String duUrl, WebClient.Builder webClientBuilder, LlmIntentClassifierService llmClassifier) {
         this.conversationRepository = conversationRepository;
         this.nluService = nluService;
+        // Instanciar duService con la URL de DU
+        this.duService = new NluService(webClientBuilder, duUrl, "intents", "es", llmClassifier);
     }
 
     /**
@@ -97,6 +102,45 @@ public class DialogManager {
         } catch (Exception e) {
             logger.error("Error procesando mensaje: {}", e.getMessage(), e);
             return DialogResult.error("Error procesando tu mensaje. Por favor, inténtalo de nuevo.");
+        }
+    }
+
+    public DialogResult processMessageWithDu(String userMessage, String sessionId) {
+        try {
+            logger.info("Procesando mensaje (DU): '{}' para sesión: {}", userMessage, sessionId);
+
+            if (sessionId == null || sessionId.trim().isEmpty()) {
+                sessionId = UUID.randomUUID().toString();
+                logger.info("Generado nuevo sessionId: {}", sessionId);
+            }
+
+            ConversationState conversation = getOrCreateConversation(sessionId);
+
+            if (isResetCommand(userMessage)) {
+                return handleResetCommand(conversation);
+            }
+
+            if (isCancelCommand(userMessage)) {
+                return handleCancelCommand(conversation);
+            }
+
+            // Analizar mensaje con DU
+            NluMessage nluResult = duService.analyzeText(userMessage);
+            String detectedIntent = nluResult.getIntent().getName();
+            double confidence = nluResult.getIntent().getConfidenceAsDouble();
+
+            logger.debug("Intención detectada (DU): '{}' con confianza: {}", detectedIntent, confidence);
+
+            conversation.setLastMessage(userMessage);
+
+            if (conversation.getCurrentIntent() != null) {
+                return continueExistingConversation(conversation, nluResult);
+            } else {
+                return startNewConversation(conversation, nluResult, confidence);
+            }
+        } catch (Exception e) {
+            logger.error("Error procesando mensaje (DU): {}", e.getMessage(), e);
+            return DialogResult.error("Error procesando tu mensaje con DU. Por favor, inténtalo de nuevo.");
         }
     }
 
