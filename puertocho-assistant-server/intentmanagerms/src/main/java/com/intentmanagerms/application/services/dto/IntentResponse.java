@@ -2,7 +2,7 @@ package com.intentmanagerms.application.services.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class NluResponse {
+public class IntentResponse {
     @JsonProperty("messageId")
     private String messageId;
     
@@ -19,12 +19,12 @@ public class NluResponse {
     private String model;
     
     @JsonProperty("message")
-    private String message; // JSON string que contiene NluMessage
+    private String message; // JSON string que contiene IntentMessage
     
     // Constructores
-    public NluResponse() {}
+    public IntentResponse() {}
     
-    public NluResponse(String messageId, String domain, String locale, 
+    public IntentResponse(String messageId, String domain, String locale, 
                       String userUtterance, String model, String message) {
         this.messageId = messageId;
         this.domain = domain;
@@ -85,7 +85,7 @@ public class NluResponse {
     
     @Override
     public String toString() {
-        return "NluResponse{" +
+        return "IntentResponse{" +
                 "messageId='" + messageId + '\'' +
                 ", domain='" + domain + '\'' +
                 ", locale='" + locale + '\'' +

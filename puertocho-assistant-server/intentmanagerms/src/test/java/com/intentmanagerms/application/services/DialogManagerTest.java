@@ -45,17 +45,17 @@ class DialogManagerTest {
                 });
     }
 
-    private NluMessage buildNluMessage(String intentName, double confidence, Map<String, String> entities) {
-        NluIntent intent = new NluIntent(intentName, String.valueOf(confidence));
-        List<NluEntity> entityList = new ArrayList<>();
-        entities.forEach((k, v) -> entityList.add(new NluEntity(k, 0, 0, "1.0", v, "manual", List.of())));
-        return new NluMessage(intent, entityList, List.of(), "test");
+    private IntentMessage buildIntentMessage(String intentName, double confidence, Map<String, String> entities) {
+        IntentInfo intent = new IntentInfo(intentName, String.valueOf(confidence));
+        List<EntityInfo> entityList = new ArrayList<>();
+        entities.forEach((k, v) -> entityList.add(new EntityInfo(k, 0, 0, "1.0", v, "manual", List.of())));
+        return new IntentMessage(intent, entityList, List.of(), "test");
     }
 
     @Test
     void dadoMensajeConBajaConfianza_retornaClarificacion() {
         when(nluService.analyzeText("hola"))
-                .thenReturn(buildNluMessage("saludo", 0.1, Map.of()));
+                .thenReturn(buildIntentMessage("saludo", 0.1, Map.of()));
 
         DialogResult result = dialogManager.processMessage("hola", null);
 
@@ -65,7 +65,7 @@ class DialogManagerTest {
     @Test
     void dadoMensajeSinEntidad_retornaFollowUp() {
         when(nluService.analyzeText("enciende la luz"))
-                .thenReturn(buildNluMessage("encender_luz", 0.9, Map.of()));
+                .thenReturn(buildIntentMessage("encender_luz", 0.9, Map.of()));
 
         DialogResult result = dialogManager.processMessage("enciende la luz", null);
 
@@ -77,13 +77,13 @@ class DialogManagerTest {
     void dadoSegundaEntradaConEntidadCompleta_retornaActionReady() {
         // Primera vuelta, falta entidad "lugar"
         when(nluService.analyzeText("enciende la luz"))
-                .thenReturn(buildNluMessage("encender_luz", 0.9, Map.of()));
+                .thenReturn(buildIntentMessage("encender_luz", 0.9, Map.of()));
         DialogResult first = dialogManager.processMessage("enciende la luz", null);
         String sessionId = first.getSessionId();
 
         // Segunda vuelta con entidad requerida
         when(nluService.analyzeText("en el salón"))
-                .thenReturn(buildNluMessage("encender_luz", 0.9, Map.of("lugar", "salón")));
+                .thenReturn(buildIntentMessage("encender_luz", 0.9, Map.of("lugar", "salón")));
         DialogResult second = dialogManager.processMessage("en el salón", sessionId);
 
         assertTrue(second.isActionReady());

@@ -2,8 +2,9 @@ package com.intentmanagerms.application.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.intentmanagerms.application.services.dto.NluMessage;
-import com.intentmanagerms.application.services.dto.NluResponse;
+import com.intentmanagerms.application.services.dto.IntentMessage;
+import com.intentmanagerms.application.services.dto.IntentResponse;
+import com.intentmanagerms.application.services.dto.IntentInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,10 +49,10 @@ public class NluService {
      * Analiza el texto del usuario y obtiene la intención y entidades detectadas.
      * 
      * @param userText El texto del usuario a analizar
-     * @return NluMessage con la intención, entidades y información adicional
+     * @return IntentMessage con la intención, entidades y información adicional
      * @throws NluServiceException Si ocurre un error durante el análisis
      */
-    public NluMessage analyzeText(String userText) {
+    public IntentMessage analyzeText(String userText) {
         return analyzeText(userText, defaultDomain, defaultLocale);
     }
     
@@ -61,10 +62,10 @@ public class NluService {
      * @param userText El texto del usuario a analizar
      * @param domain El dominio específico (ej: intents, música, etc.)
      * @param locale El idioma específico (ej: es, en, etc.)
-     * @return NluMessage con la intención, entidades y información adicional
+     * @return IntentMessage con la intención, entidades y información adicional
      * @throws NluServiceException Si ocurre un error durante el análisis
      */
-    public NluMessage analyzeText(String userText, String domain, String locale) {
+    public IntentMessage analyzeText(String userText, String domain, String locale) {
         if (userText == null || userText.trim().isEmpty()) {
             throw new NluServiceException("El texto del usuario no puede estar vacío");
         }
@@ -72,7 +73,7 @@ public class NluService {
         try {
             logger.debug("Analizando texto: '{}' con dominio: {} y locale: {}", userText, domain, locale);
             
-            NluResponse response = webClient.post()
+            IntentResponse response = webClient.post()
                     .uri(uriBuilder -> uriBuilder
                             .path("/predict")
                             .queryParam("domain", domain)
@@ -80,7 +81,7 @@ public class NluService {
                             .queryParam("userUtterance", userText)
                             .build())
                     .retrieve()
-                    .bodyToMono(NluResponse.class)
+                    .bodyToMono(IntentResponse.class)
                     .timeout(Duration.ofSeconds(30))
                     .block();
             
@@ -89,23 +90,23 @@ public class NluService {
             }
             
             // Parsear el mensaje JSON interno
-            NluMessage nluMessage = parseNluMessage(response.getMessage());
+            IntentMessage intentMessage = parseIntentMessage(response.getMessage());
             
-            double conf = nluMessage.getIntent().getConfidenceAsDouble();
+            double conf = intentMessage.getIntent().getConfidenceAsDouble();
             logger.debug("Intención detectada: {} con confianza: {}",
-                        nluMessage.getIntent().getName(), conf);
+                        intentMessage.getIntent().getName(), conf);
             
             // Fallback LLM si confianza baja
             if (conf < 0.3) {
                 String llmIntent = llmClassifier.predictIntent(userText);
                 if (llmIntent != null) {
                     logger.info("LLM clasificó la intención como '{}' (fallback)", llmIntent);
-                    nluMessage.getIntent().setName(llmIntent);
-                    nluMessage.getIntent().setConfidence("0.80");
+                    intentMessage.getIntent().setName(llmIntent);
+                    intentMessage.getIntent().setConfidence("0.80");
                 }
             }
             
-            return nluMessage;
+            return intentMessage;
             
         } catch (WebClientResponseException e) {
             String errorMsg = String.format("Error HTTP %d al consultar NLU: %s", 
@@ -115,8 +116,8 @@ public class NluService {
             String llmIntent = llmClassifier.predictIntent(userText);
             if (llmIntent != null) {
                 logger.warn("NLU devolvió {} – usando LLM para clasificar como '{}'", e.getStatusCode(), llmIntent);
-                NluMessage nm = new NluMessage();
-                com.intentmanagerms.application.services.dto.NluIntent ni = new com.intentmanagerms.application.services.dto.NluIntent();
+                IntentMessage nm = new IntentMessage();
+                IntentInfo ni = new IntentInfo();
                 ni.setName(llmIntent);
                 ni.setConfidence("0.80");
                 nm.setIntent(ni);
@@ -134,8 +135,8 @@ public class NluService {
             String llmIntent = llmClassifier.predictIntent(userText);
             if (llmIntent != null) {
                 logger.warn("NLU falló; usando LLM para clasificar como '{}'", llmIntent);
-                NluMessage nm = new NluMessage();
-                com.intentmanagerms.application.services.dto.NluIntent ni = new com.intentmanagerms.application.services.dto.NluIntent();
+                IntentMessage nm = new IntentMessage();
+                IntentInfo ni = new IntentInfo();
                 ni.setName(llmIntent);
                 ni.setConfidence("0.80");
                 nm.setIntent(ni);
@@ -181,14 +182,14 @@ public class NluService {
         try {
             logger.info("Iniciando entrenamiento del modelo NLU para dominio: {} y locale: {}", domain, locale);
             
-            NluResponse response = webClient.post()
+            IntentResponse response = webClient.post()
                     .uri(uriBuilder -> uriBuilder
                             .path("/train")
                             .queryParam("domain", domain)
                             .queryParam("locale", locale)
                             .build())
                     .retrieve()
-                    .bodyToMono(NluResponse.class)
+                    .bodyToMono(IntentResponse.class)
                     .timeout(Duration.ofMinutes(10)) // El entrenamiento puede tomar tiempo
                     .block();
             
@@ -208,9 +209,9 @@ public class NluService {
         }
     }
     
-    private NluMessage parseNluMessage(String messageJson) throws NluServiceException {
+    private IntentMessage parseIntentMessage(String messageJson) throws NluServiceException {
         try {
-            return objectMapper.readValue(messageJson, NluMessage.class);
+            return objectMapper.readValue(messageJson, IntentMessage.class);
         } catch (JsonProcessingException e) {
             throw new NluServiceException("Error parseando respuesta JSON del servicio NLU: " + e.getMessage(), e);
         }

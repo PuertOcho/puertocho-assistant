@@ -104,6 +104,7 @@ services:
       - ENABLE_MAIL=${ENABLE_MAIL}
       - ENABLE_CLOUD=${ENABLE_CLOUD}
       - ENABLE_INTENT_MANAGER=${ENABLE_INTENT_MANAGER}
+      - ENABLE_DU=${ENABLE_DU}
 
       # Microservicios
       - GATEWAY_SERVICE=${GATEWAY_SERVICE}
@@ -120,6 +121,8 @@ services:
       - PORT_CLOUD=${PORT_CLOUD}
       - INTENT_MANAGER_SERVICE=${INTENT_MANAGER_SERVICE}
       - PORT_INTENT_MANAGER=${PORT_INTENT_MANAGER}
+      - DU_SERVICE=${DU_SERVICE}
+      - PORT_DU=${PORT_DU}
 
       # Gateway config
       - SPRING_APPLICATION_NAME=${GATEWAY_SERVICE}
@@ -256,6 +259,14 @@ services:
       - SMART_HOME_SERVICE=${SMART_HOME_SERVICE}
       - PORT_SMART_HOME=${PORT_SMART_HOME}
       
+      # Configuración de autologin
+      - AUTOLOGIN_ENABLED=${AUTOLOGIN_ENABLED}
+      - SERVICE_USERNAME=${SERVICE_USERNAME}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - SERVICE_EMAIL=${SERVICE_EMAIL}
+      - SERVICE_FULLNAME=${SERVICE_FULLNAME}
+      - GATEWAY_URL=${GATEWAY_URL}
+      
       # Configuración Redis
       - REDIS_HOST=${REDIS_SERVICE:-puertocho-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
@@ -290,6 +301,36 @@ services:
       timeout: 5s
       retries: 5
       start_period: 40s
+    networks:
+      - puertocho-assistant-network
+
+  # Servicio DU - Rasa Pro para procesamiento de diálogos
+  du-puertocho-ms:
+    build:
+      context: ./puertocho-assistant-server/du-puertocho-ms
+      dockerfile: Dockerfile
+    container_name: ${DU_SERVICE:-du-puertocho-ms}
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RASA_PRO_LICENSE=${RASA_PRO_LICENSE}
+      - RASA_DEBUG=${RASA_DEBUG:-true}
+      - RASA_CORS=${RASA_CORS:-*}
+      - RASA_MODEL=${RASA_MODEL:-models}
+      - ACTIONS_PORT=${ACTIONS_PORT:-5055}
+      - LANG=${LANG:-es}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4-turbo}
+    ports:
+      - "${PORT_DU:-5005}:5005"
+    volumes:
+      - ./puertocho-assistant-server/du-puertocho-ms:/app
+    command: ["rasa", "run", "--enable-api", "--cors", "${RASA_CORS:-*}", "--debug"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - puertocho-assistant-network
 

@@ -3,7 +3,7 @@ package com.intentmanagerms.application.services.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
-public class NluEntity {
+public class EntityInfo {
     @JsonProperty("entity")
     private String entity;
     
@@ -26,9 +26,9 @@ public class NluEntity {
     private List<String> processors;
     
     // Constructores
-    public NluEntity() {}
+    public EntityInfo() {}
     
-    public NluEntity(String entity, int start, int end, String confidenceEntity, 
+    public EntityInfo(String entity, int start, int end, String confidenceEntity, 
                     String value, String extractor, List<String> processors) {
         this.entity = entity;
         this.start = start;
@@ -107,7 +107,7 @@ public class NluEntity {
     
     @Override
     public String toString() {
-        return "NluEntity{" +
+        return "EntityInfo{" +
                 "entity='" + entity + '\'' +
                 ", start=" + start +
                 ", end=" + end +

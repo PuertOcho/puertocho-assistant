@@ -2,7 +2,7 @@ package com.intentmanagerms.application.services.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class NluIntent {
+public class IntentInfo {
     @JsonProperty("name")
     private String name;
     
@@ -10,9 +10,9 @@ public class NluIntent {
     private String confidence;
     
     // Constructores
-    public NluIntent() {}
+    public IntentInfo() {}
     
-    public NluIntent(String name, String confidence) {
+    public IntentInfo(String name, String confidence) {
         this.name = name;
         this.confidence = confidence;
     }
@@ -45,7 +45,7 @@ public class NluIntent {
     
     @Override
     public String toString() {
-        return "NluIntent{" +
+        return "IntentInfo{" +
                 "name='" + name + '\'' +
                 ", confidence='" + confidence + '\'' +
                 '}';

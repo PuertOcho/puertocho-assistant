@@ -1,7 +1,7 @@
 package com.intentmanagerms.application.services;
 
-import com.intentmanagerms.application.services.dto.NluEntity;
-import com.intentmanagerms.application.services.dto.NluMessage;
+import com.intentmanagerms.application.services.dto.EntityInfo;
+import com.intentmanagerms.application.services.dto.IntentMessage;
 import com.intentmanagerms.application.tools.SmartHomeTools;
 import com.intentmanagerms.application.tools.SystemTools;
 import com.intentmanagerms.application.tools.TaigaTools;
@@ -238,11 +238,11 @@ public class SmartAssistantService implements Assistant {
                "• Y mucho más. Solo dime qué necesitas.";
     }
 
-    private Map<String, String> extractEntities(List<NluEntity> entities) {
+    private Map<String, String> extractEntities(List<EntityInfo> entities) {
         return entities.stream()
                 .collect(Collectors.toMap(
-                        NluEntity::getEntity,
-                        NluEntity::getValue,
+                        EntityInfo::getEntity,
+                        EntityInfo::getValue,
                         (existing, replacement) -> existing // En caso de duplicados, mantener el primero
                 ));
     }

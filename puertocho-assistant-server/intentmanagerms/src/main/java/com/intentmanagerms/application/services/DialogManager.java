@@ -1,6 +1,6 @@
 package com.intentmanagerms.application.services;
 
-import com.intentmanagerms.application.services.dto.NluMessage;
+import com.intentmanagerms.application.services.dto.IntentMessage;
 import com.intentmanagerms.domain.model.ConversationState;
 import com.intentmanagerms.domain.model.ConversationStatus;
 import com.intentmanagerms.domain.repository.ConversationRepository;
@@ -26,7 +26,7 @@ public class DialogManager {
 
     private final ConversationRepository conversationRepository;
     private final NluService nluService;
-    private final NluService duService;
+    private final DuService duService;
 
     // Definición de entidades requeridas por intención
     private static final Map<String, Set<String>> INTENT_REQUIRED_ENTITIES = Map.of(
@@ -46,11 +46,11 @@ public class DialogManager {
         "genero", "¿Qué género musical prefieres?"
     );
 
-    public DialogManager(ConversationRepository conversationRepository, NluService nluService, @Value("${du.url:http://du-puertocho-ms:5005/model/parse}") String duUrl, WebClient.Builder webClientBuilder, LlmIntentClassifierService llmClassifier) {
+    public DialogManager(ConversationRepository conversationRepository, NluService nluService, @Value("${du.url:http://du-puertocho-ms:5005/webhooks/rest/webhook}") String duUrl, WebClient.Builder webClientBuilder, LlmIntentClassifierService llmClassifier) {
         this.conversationRepository = conversationRepository;
         this.nluService = nluService;
         // Instanciar duService con la URL de DU
-        this.duService = new NluService(webClientBuilder, duUrl, "intents", "es", llmClassifier);
+        this.duService = new DuService(webClientBuilder, duUrl);
     }
 
     /**
@@ -83,7 +83,7 @@ public class DialogManager {
             }
 
             // Analizar mensaje con NLU
-            NluMessage nluResult = nluService.analyzeText(userMessage);
+            IntentMessage nluResult = nluService.analyzeText(userMessage);
             String detectedIntent = nluResult.getIntent().getName();
             double confidence = nluResult.getIntent().getConfidenceAsDouble();
 
@@ -125,18 +125,38 @@ public class DialogManager {
             }
 
             // Analizar mensaje con DU
-            NluMessage nluResult = duService.analyzeText(userMessage);
-            String detectedIntent = nluResult.getIntent().getName();
-            double confidence = nluResult.getIntent().getConfidenceAsDouble();
-
-            logger.debug("Intención detectada (DU): '{}' con confianza: {}", detectedIntent, confidence);
+            IntentMessage duResult = duService.analyzeText(userMessage, sessionId);
+            String detectedIntent = duResult.getIntent().getName();
+            String status = duResult.getStatus();
+            java.util.List<String> missingEntities = duResult.getMissingEntities();
+            logger.debug("Intención detectada (DU): '{}' con status: {} y missing_entities: {}", detectedIntent, status, missingEntities);
 
             conversation.setLastMessage(userMessage);
+            conversation.setCurrentIntent(detectedIntent);
+            conversation.setRequiredEntities(missingEntities == null ? java.util.Set.of() : new java.util.HashSet<>(missingEntities));
 
-            if (conversation.getCurrentIntent() != null) {
-                return continueExistingConversation(conversation, nluResult);
+            // Extraer entidades y almacenarlas
+            if (duResult.getEntities() != null) {
+                for (var entity : duResult.getEntities()) {
+                    conversation.addEntity(entity.getEntity(), entity.getValue());
+                }
+            }
+            conversationRepository.save(conversation);
+
+            // Lógica de slot filling según status y entidades faltantes
+            if ("ready".equalsIgnoreCase(status) && (missingEntities == null || missingEntities.isEmpty())) {
+                return completeAction(conversation);
+            } else if ("in_progress".equalsIgnoreCase(status) && missingEntities != null && !missingEntities.isEmpty()) {
+                // Preguntar por la primera entidad faltante
+                String missingEntity = missingEntities.get(0);
+                String question = generateQuestionForEntity(missingEntity, detectedIntent);
+                conversation.setLastResponse(question);
+                conversationRepository.save(conversation);
+                logger.debug("Solicitando entidad faltante: {} para intención: {}", missingEntity, detectedIntent);
+                return DialogResult.followUp(question, conversation.getSessionId());
             } else {
-                return startNewConversation(conversation, nluResult, confidence);
+                // Fallback: pedir clarificación
+                return DialogResult.clarification("No he podido entender tu petición completa. ¿Puedes darme más detalles?");
             }
         } catch (Exception e) {
             logger.error("Error procesando mensaje (DU): {}", e.getMessage(), e);
@@ -163,7 +183,7 @@ public class DialogManager {
     /**
      * Inicia una nueva conversación con una intención detectada.
      */
-    private DialogResult startNewConversation(ConversationState conversation, NluMessage nluResult, double confidence) {
+    private DialogResult startNewConversation(ConversationState conversation, IntentMessage nluResult, double confidence) {
         String intent = nluResult.getIntent().getName();
         
         // Verificar confianza mínima
@@ -191,7 +211,7 @@ public class DialogManager {
     /**
      * Continúa una conversación existente intentando completar entidades.
      */
-    private DialogResult continueExistingConversation(ConversationState conversation, NluMessage nluResult) {
+    private DialogResult continueExistingConversation(ConversationState conversation, IntentMessage nluResult) {
         logger.debug("Continuando conversación existente para intención: {}", conversation.getCurrentIntent());
 
         // Extraer entidades del nuevo mensaje
@@ -208,7 +228,7 @@ public class DialogManager {
     /**
      * Extrae entidades del resultado NLU y las almacena en la conversación.
      */
-    private void extractAndStoreEntities(ConversationState conversation, NluMessage nluResult) {
+    private void extractAndStoreEntities(ConversationState conversation, IntentMessage nluResult) {
         nluResult.getEntities().forEach(entity -> {
             String entityName = entity.getEntity();
             String entityValue = entity.getValue();

@@ -2,7 +2,7 @@ package com.intentmanagerms.application.services.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class NluIntentRanking {
+public class IntentRankingInfo {
     @JsonProperty("name")
     private String name;
     
@@ -13,9 +13,9 @@ public class NluIntentRanking {
     private String utterance;
     
     // Constructores
-    public NluIntentRanking() {}
+    public IntentRankingInfo() {}
     
-    public NluIntentRanking(String name, String confidence, String utterance) {
+    public IntentRankingInfo(String name, String confidence, String utterance) {
         this.name = name;
         this.confidence = confidence;
         this.utterance = utterance;
@@ -57,7 +57,7 @@ public class NluIntentRanking {
     
     @Override
     public String toString() {
-        return "NluIntentRanking{" +
+        return "IntentRankingInfo{" +
                 "name='" + name + '\'' +
                 ", confidence='" + confidence + '\'' +
                 ", utterance='" + utterance + '\'' +
