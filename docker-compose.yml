@@ -338,7 +338,7 @@ services:
   # SERVICIOS TTS/ASR - COMUNES A MÚLTIPLES APLICACIONES
   # =============================================================================
   
-  # Servicio STT (Speech-to-Text) - Whisper
+  # Servicio STT (Speech-to-Text) - WhisperS
   puertocho-assistant-whisper:
     build:
       context: ./puertocho-assistant-server/whisper-ms/app
