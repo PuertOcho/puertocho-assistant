@@ -1,0 +1,163 @@
+{
+  "version": "1.0.0",
+  "description": "MCP Services Registry - Available actions and their configurations",
+  "services": {
+    "weather-mcp": {
+      "name": "Weather Service",
+      "url": "http://weather-mcp:5000",
+      "enabled": true,
+      "timeout": 30,
+      "actions": {
+        "consultar_tiempo": {
+          "endpoint": "/weather/current",
+          "method": "GET",
+          "description": "Consulta información meteorológica actual",
+          "required_params": ["location"],
+          "optional_params": ["units", "lang"],
+          "response_type": "json"
+        }
+      }
+    },
+    "smart-home-mcp": {
+      "name": "Smart Home Service", 
+      "url": "http://smart-home-mcp:5000",
+      "enabled": true,
+      "timeout": 15,
+      "actions": {
+        "smart_home_light_on": {
+          "endpoint": "/lights/on",
+          "method": "POST",
+          "description": "Enciende luces en una habitación",
+          "required_params": ["room"],
+          "optional_params": ["brightness", "color"],
+          "response_type": "json"
+        },
+        "smart_home_light_off": {
+          "endpoint": "/lights/off", 
+          "method": "POST",
+          "description": "Apaga luces en una habitación",
+          "required_params": ["room"],
+          "response_type": "json"
+        },
+        "smart_home_play_music": {
+          "endpoint": "/music/play",
+          "method": "POST", 
+          "description": "Reproduce música",
+          "required_params": [],
+          "optional_params": ["artist", "genre", "song", "playlist"],
+          "response_type": "json"
+        },
+        "smart_home_stop_music": {
+          "endpoint": "/music/stop",
+          "method": "POST",
+          "description": "Detiene la reproducción de música",
+          "required_params": [],
+          "response_type": "json"
+        }
+      }
+    },
+    "system-mcp": {
+      "name": "System Service",
+      "url": "http://system-mcp:5000", 
+      "enabled": true,
+      "timeout": 20,
+      "actions": {
+        "programar_alarma": {
+          "endpoint": "/alarm/create",
+          "method": "POST",
+          "description": "Programa una alarma",
+          "required_params": ["datetime"],
+          "optional_params": ["message", "repeat"],
+          "response_type": "json"
+        },
+        "programar_alarma_condicional": {
+          "endpoint": "/alarm/conditional",
+          "method": "POST", 
+          "description": "Programa alarma basada en condiciones",
+          "required_params": ["condition"],
+          "optional_params": ["message", "location"],
+          "response_type": "json"
+        }
+      }
+    },
+    "github-mcp": {
+      "name": "GitHub Service",
+      "url": "http://github-mcp:5000",
+      "enabled": true,
+      "timeout": 45,
+      "actions": {
+        "github_create_issue": {
+          "endpoint": "/issues/create", 
+          "method": "POST",
+          "description": "Crea un issue en GitHub",
+          "required_params": ["title"],
+          "optional_params": ["description", "repository", "labels", "assignee"],
+          "response_type": "json"
+        },
+        "github_list_repos": {
+          "endpoint": "/repos/list",
+          "method": "GET",
+          "description": "Lista repositorios disponibles",
+          "required_params": [],
+          "optional_params": ["owner", "type"],
+          "response_type": "json"
+        }
+      }
+    },
+    "taiga-mcp": {
+      "name": "Taiga Service",
+      "url": "http://taiga-mcp-ms:5000",
+      "enabled": true, 
+      "timeout": 30,
+      "actions": {
+        "taiga_update_story": {
+          "endpoint": "/stories/update",
+          "method": "PUT",
+          "description": "Actualiza una historia en Taiga",
+          "required_params": ["story_id", "status"],
+          "optional_params": ["comment", "assigned_to"],
+          "response_type": "json"
+        },
+        "taiga_create_story": {
+          "endpoint": "/stories/create",
+          "method": "POST",
+          "description": "Crea una nueva historia en Taiga", 
+          "required_params": ["title", "project_id"],
+          "optional_params": ["description", "assigned_to", "priority"],
+          "response_type": "json"
+        },
+        "taiga_list_projects": {
+          "endpoint": "/projects/list",
+          "method": "GET",
+          "description": "Lista proyectos disponibles en Taiga",
+          "required_params": [],
+          "optional_params": ["owner"],
+          "response_type": "json"
+        }
+      }
+    },
+    "whisper-mcp": {
+      "name": "Whisper Transcription Service",
+      "url": "http://whisper-ms:5000",
+      "enabled": true,
+      "timeout": 60,
+      "actions": {
+        "transcribe_audio": {
+          "endpoint": "/transcribe",
+          "method": "POST",
+          "description": "Transcribe audio a texto",
+          "required_params": ["audio_file"],
+          "optional_params": ["language", "model"],
+          "response_type": "json",
+          "content_type": "multipart/form-data"
+        }
+      }
+    }
+  },
+  "fallback_responses": {
+    "service_unavailable": "Lo siento, el servicio {service_name} no está disponible en este momento.",
+    "timeout_error": "El servicio {service_name} está tardando demasiado en responder.",
+    "invalid_params": "Los parámetros proporcionados para {action_name} no son válidos.",
+    "general_error": "Ha ocurrido un error al ejecutar la acción {action_name}."
+  }
+}

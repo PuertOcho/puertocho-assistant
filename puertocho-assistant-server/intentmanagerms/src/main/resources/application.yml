@@ -1,12 +1,8 @@
-server:
-  port: ${PORT_INTENT_MANAGER}
-
 spring:
   application:
-    name: ${SPRING_APPLICATION_NAME}
+    name: ${SPRING_APPLICATION_NAME:intent-manager}
   config:
-    import: optional:configserver:http://${CONFIG_SERVICE}:${PORT_CONFIG}
+    import: optional:configserver:http://${CONFIG_SERVICE:configms}:${PORT_CONFIG:8888}
   cloud:
     config:
       name: intent-manager
-

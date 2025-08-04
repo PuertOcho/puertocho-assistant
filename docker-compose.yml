@@ -208,83 +208,69 @@ services:
     networks:
       - puertocho-assistant-network
 
-  puertocho-assistant-nlu:
-    build:
-      context: ./puertocho-assistant-server/nlu-ms
-      dockerfile: Dockerfile
-    container_name: ${NLU_SERVICE:-puertocho-nlu}
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - TF_FORCE_GPU_ALLOW_GROWTH=true
-      - CUDA_VISIBLE_DEVICES=0
-      - PYTHONUNBUFFERED=1
-    ports:
-      - "${NLU_PORT:-5001}:5001"
-    volumes:
-      - ./puertocho-assistant-server/nlu-ms/server:/root/server
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    networks:
-      - puertocho-assistant-network
-    profiles:
-      - nlu-stack
-      - full
-
   puertocho-assistant-intent-manager:
     build:
       context: ./puertocho-assistant-server/intentmanagerms
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
     container_name: ${INTENT_MANAGER_SERVICE}
     environment:
+      # Spring Boot & Eureka Configuration
       - INTENT_MANAGER_SERVICE=${INTENT_MANAGER_SERVICE}
-      - PORT_INTENT_MANAGER=${PORT_INTENT_MANAGER}
+      - SERVER_PORT=${PORT_INTENT_MANAGER}
       - SPRING_APPLICATION_NAME=${INTENT_MANAGER_SERVICE}
       - EUREKA_SERVICE=${EUREKA_SERVICE}
       - PORT_EUREKA=${PORT_EUREKA}
       - CONFIG_SERVICE=${CONFIG_SERVICE}
       - PORT_CONFIG=${PORT_CONFIG}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - SMART_HOME_SERVICE=${SMART_HOME_SERVICE}
-      - PORT_SMART_HOME=${PORT_SMART_HOME}
       
-      # Configuración de autologin
-      - AUTOLOGIN_ENABLED=${AUTOLOGIN_ENABLED}
-      - SERVICE_USERNAME=${SERVICE_USERNAME}
-      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
-      - SERVICE_EMAIL=${SERVICE_EMAIL}
-      - SERVICE_FULLNAME=${SERVICE_FULLNAME}
-      - GATEWAY_URL=${GATEWAY_URL}
-      
-      # Configuración Redis
+      # Redis Configuration for Conversation State
       - REDIS_HOST=${REDIS_SERVICE:-puertocho-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - REDIS_DB=${REDIS_DB:-0}
       
-      # Configuración de servicios TTS/ASR
-      - WHISPER_URL=${WHISPER_URL:-http://puertocho-assistant-whisper:5000}
-      - TTS_F5_URL=${F5_TTS_URL:-http://disabled}
-      - TTS_AZURE_URL=${AZURE_TTS_URL:-http://puertocho-assistant-azure-tts:5000}
-      - TTS_KOKORO_URL=${KOKORO_TTS_URL:-http://puertocho-assistant-kokoro-tts:5002}
-      - TTS_PRIMARY_SERVICE=${PRIMARY_TTS_SERVICE:-azure_tts}
-      - TTS_FALLBACK_SERVICE=${FALLBACK_TTS_SERVICE:-kokoro_tts}
-      - TTS_DEFAULT_VOICE=${AZURE_TTS_DEFAULT_VOICE:-Abril}
-      - TTS_DEFAULT_LANGUAGE=${AZURE_TTS_DEFAULT_LANGUAGE:-es-ES}
+      # LLM Configuration - Primary LLM
+      - PRIMARY_LLM_MODEL=${PRIMARY_LLM_MODEL:-gpt-4}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       
-      # Configuración del servicio NLU
-      - NLU_URL=${NLU_URL:-http://puertocho-assistant-nlu:5001}
+      # MoE Voting System Configuration
+      - MOE_ENABLED=${MOE_ENABLED:-true}
+      - MOE_LLM_A_MODEL=${MOE_LLM_A_MODEL:-gpt-4}
+      - MOE_LLM_B_MODEL=${MOE_LLM_B_MODEL:-claude-3-sonnet-20240229}
+      - MOE_LLM_C_MODEL=${MOE_LLM_C_MODEL:-gpt-3.5-turbo}
+      
+      # RAG Configuration
+      - VECTOR_STORE_TYPE=${VECTOR_STORE_TYPE:-in-memory}
+      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-openai}
+      - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-text-embedding-ada-002}
+      - CHROMA_URL=${CHROMA_URL:-http://localhost:8001}
+      
+      # Configuration Files Hot-reload
+      - CONFIG_HOT_RELOAD=${CONFIG_HOT_RELOAD:-true}
+      - INTENTS_CONFIG_FILE=${INTENTS_CONFIG_FILE:-classpath:config/intents.json}
+      - MCP_REGISTRY_FILE=${MCP_REGISTRY_FILE:-classpath:config/mcp_registry.json}
+      - MOE_VOTING_FILE=${MOE_VOTING_FILE:-classpath:config/moe_voting.json}
+      
+      # MCP Services Configuration
+      - MCP_ENABLED=${MCP_ENABLED:-true}
+      - WHISPER_SERVICE_URL=${WHISPER_SERVICE_URL:-http://puertocho-assistant-whisper:5000}
+      - WHISPER_ENABLED=${WHISPER_ENABLED:-true}
+      - WEATHER_SERVICE_URL=${WEATHER_SERVICE_URL:-http://weather-mcp:5000}
+      - WEATHER_ENABLED=${WEATHER_ENABLED:-true}
+      - TAIGA_SERVICE_URL=${TAIGA_SERVICE_URL:-http://taiga-mcp-ms:5000}
+      - TAIGA_ENABLED=${TAIGA_ENABLED:-true}
+      - SYSTEM_SERVICE_URL=${SYSTEM_SERVICE_URL:-http://system-mcp:5000}
+      - SYSTEM_ENABLED=${SYSTEM_ENABLED:-true}
+      
+      # Conversation Management
+      - SESSION_TTL=${SESSION_TTL:-3600}
+      - MAX_HISTORY=${MAX_HISTORY:-50}
+      - AUTO_COMPLETE_THRESHOLD=${AUTO_COMPLETE_THRESHOLD:-0.85}
+      - SUBTASK_TIMEOUT=${SUBTASK_TIMEOUT:-120}
+      
+      # Logging Configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LANGCHAIN4J_LOG_LEVEL=${LANGCHAIN4J_LOG_LEVEL:-WARN}
     ports:
       - "9904:9904"
     restart: unless-stopped

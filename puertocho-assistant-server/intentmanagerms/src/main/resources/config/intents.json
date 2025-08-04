@@ -1,0 +1,166 @@
+{
+  "version": "1.0.0",
+  "description": "Intent examples for RAG-based classification",
+  "intents": {
+    "consultar_tiempo": {
+      "description": "Consultar información meteorológica de una ubicación",
+      "examples": [
+        "¿qué tiempo hace?",
+        "dime el clima de hoy",
+        "cómo está el tiempo",
+        "va a llover hoy?",
+        "qué temperatura hace en Madrid",
+        "necesito saber el pronóstico del tiempo",
+        "consulta el tiempo de mañana"
+      ],
+      "required_entities": ["ubicacion"],
+      "mcp_action": "consultar_tiempo",
+      "slot_filling_questions": {
+        "ubicacion": "¿De qué ciudad quieres consultar el tiempo?"
+      }
+    },
+    "encender_luz": {
+      "description": "Encender luces en una habitación específica",
+      "examples": [
+        "enciende la luz",
+        "prende la lámpara",
+        "ilumina la habitación",
+        "pon la luz del salón",
+        "activa las luces",
+        "luz encendida por favor"
+      ],
+      "required_entities": ["lugar"],
+      "mcp_action": "smart_home_light_on",
+      "slot_filling_questions": {
+        "lugar": "¿En qué habitación quieres encender la luz?"
+      }
+    },
+    "apagar_luz": {
+      "description": "Apagar luces en una habitación específica",
+      "examples": [
+        "apaga la luz",
+        "apaga las luces del dormitorio",
+        "quita la luz",
+        "desactiva la iluminación",
+        "oscurece la habitación"
+      ],
+      "required_entities": ["lugar"],
+      "mcp_action": "smart_home_light_off",
+      "slot_filling_questions": {
+        "lugar": "¿En qué habitación quieres apagar la luz?"
+      }
+    },
+    "reproducir_musica": {
+      "description": "Reproducir música, canciones o artistas específicos",
+      "examples": [
+        "pon música",
+        "reproduce una canción",
+        "quiero escuchar música",
+        "pon algo de jazz",
+        "reproduce mi playlist favorita",
+        "música relajante por favor"
+      ],
+      "required_entities": [],
+      "optional_entities": ["artista", "genero", "cancion"],
+      "mcp_action": "smart_home_play_music",
+      "slot_filling_questions": {
+        "artista": "¿Qué artista quieres escuchar?",
+        "genero": "¿Qué género musical prefieres?",
+        "cancion": "¿Qué canción específica quieres escuchar?"
+      }
+    },
+    "parar_musica": {
+      "description": "Detener o pausar la reproducción de música",
+      "examples": [
+        "para la música",
+        "detén la canción",
+        "pausa la música",
+        "silencio",
+        "stop música"
+      ],
+      "required_entities": [],
+      "mcp_action": "smart_home_stop_music"
+    },
+    "programar_alarma": {
+      "description": "Programar una alarma para una fecha y hora específica",
+      "examples": [
+        "pon una alarma",
+        "despiértame mañana a las 7",
+        "programa una alarma para las 8:30",
+        "quiero una alarma",
+        "avísame en 2 horas"
+      ],
+      "required_entities": ["fecha_hora"],
+      "optional_entities": ["mensaje"],
+      "mcp_action": "programar_alarma",
+      "slot_filling_questions": {
+        "fecha_hora": "¿A qué hora quieres que te despierte?",
+        "mensaje": "¿Qué mensaje quieres que tenga la alarma?"
+      }
+    },
+    "crear_github_issue": {
+      "description": "Crear un issue en un repositorio de GitHub",
+      "examples": [
+        "crea un issue en github",
+        "reporta un bug",
+        "abre un ticket en github",
+        "documenta este problema en github",
+        "añade un issue sobre esto"
+      ],
+      "required_entities": ["titulo"],
+      "optional_entities": ["descripcion", "repositorio"],
+      "mcp_action": "github_create_issue",
+      "slot_filling_questions": {
+        "titulo": "¿Cuál es el título del issue?",
+        "descripcion": "¿Qué descripción quieres añadir al issue?",
+        "repositorio": "¿En qué repositorio quieres crear el issue?"
+      }
+    },
+    "actualizar_taiga_story": {
+      "description": "Actualizar el estado de una historia en Taiga",
+      "examples": [
+        "actualiza el estado en taiga",
+        "cambia la story a completada",
+        "marca como hecho en taiga",
+        "actualiza el proyecto",
+        "modifica la historia en taiga"
+      ],
+      "required_entities": ["story_id", "estado"],
+      "optional_entities": ["comentario"],
+      "mcp_action": "taiga_update_story",
+      "slot_filling_questions": {
+        "story_id": "¿Cuál es el ID de la historia que quieres actualizar?",
+        "estado": "¿A qué estado quieres cambiar la historia?",
+        "comentario": "¿Quieres añadir algún comentario?"
+      }
+    },
+    "saludo": {
+      "description": "Saludo inicial o general",
+      "examples": [
+        "hola",
+        "buenos días",
+        "buenas tardes",
+        "hey",
+        "saludos",
+        "qué tal"
+      ],
+      "required_entities": [],
+      "mcp_action": "simple_response",
+      "simple_response": "¡Hola! Soy tu asistente de PuertoCho. ¿En qué puedo ayudarte?"
+    },
+    "ayuda": {
+      "description": "Solicitud de ayuda o información sobre capacidades",
+      "examples": [
+        "ayuda",
+        "qué puedes hacer",
+        "cuáles son tus funciones",
+        "help",
+        "asistencia",
+        "qué comandos tienes"
+      ],
+      "required_entities": [],
+      "mcp_action": "simple_response",
+      "simple_response": "Puedo ayudarte con: control de luces, música, consultar el tiempo, programar alarmas, gestionar GitHub y Taiga. También puedo manejar múltiples tareas en una sola petición."
+    }
+  }
+}
