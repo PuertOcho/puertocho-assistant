@@ -104,7 +104,10 @@ moe:
   timeout-per-vote: ${MOE_TIMEOUT_PER_VOTE:30}
   parallel-voting: ${MOE_PARALLEL_VOTING:true}
   consensus-threshold: ${MOE_CONSENSUS_THRESHOLD:0.6}
-  max-debate-rounds: ${MOE_MAX_DEBATE_ROUNDS:1}
+  max-debate-rounds: ${MOE_MAX_DEBATE_ROUNDS:2}
+  debate-timeout: ${MOE_DEBATE_TIMEOUT:60}
+  enable-debate: ${MOE_ENABLE_DEBATE:true}
+  debate-consensus-improvement-threshold: ${MOE_DEBATE_CONSENSUS_IMPROVEMENT_THRESHOLD:0.1}
   configuration:
     file: ${MOE_CONFIGURATION_FILE:classpath:config/moe_voting.json}
     hot-reload:

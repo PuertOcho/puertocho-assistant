@@ -3,10 +3,13 @@
   "description": "MoE Voting System Configuration - Multiple LLMs voting for improved accuracy",
   "voting_system": {
     "enabled": true,
-    "max_debate_rounds": 1,
+    "max_debate_rounds": 2,
     "consensus_threshold": 0.6,
     "timeout_per_vote": 30,
     "parallel_voting": true,
+    "enable_debate": true,
+    "debate_timeout": 60,
+    "debate_consensus_improvement_threshold": 0.1,
     "llm_participants": [
       {
         "id": "llm_a",

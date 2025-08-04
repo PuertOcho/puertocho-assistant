@@ -24,6 +24,8 @@ import java.util.stream.Collectors;
  * - Procesar votos y calcular consenso final
  * - Manejar fallbacks cuando el sistema de votación falla
  * - Proporcionar logging transparente del proceso
+ * 
+ * T3.2: Sistema de debate mejorado donde 3 LLMs debaten brevemente la acción a tomar
  */
 @Service
 public class LlmVotingService {
@@ -52,8 +54,17 @@ public class LlmVotingService {
     @Value("${moe.consensus-threshold:0.6}")
     private double consensusThreshold;
     
-    @Value("${moe.max-debate-rounds:1}")
+    @Value("${moe.max-debate-rounds:2}")
     private int maxDebateRounds;
+    
+    @Value("${moe.debate-timeout:60}")
+    private int debateTimeout;
+    
+    @Value("${moe.enable-debate:true}")
+    private boolean enableDebate;
+    
+    @Value("${moe.debate-consensus-improvement-threshold:0.1}")
+    private double debateConsensusImprovementThreshold;
     
     private VotingConfiguration votingConfiguration;
     private final Map<String, VotingRound> activeRounds = new ConcurrentHashMap<>();
@@ -68,7 +79,8 @@ public class LlmVotingService {
     }
     
     /**
-     * Ejecuta una ronda de votación para clasificar la intención del usuario.
+     * Ejecuta una ronda de votación con debate para clasificar la intención del usuario.
+     * T3.2: Sistema de debate mejorado donde los LLMs pueden debatir entre sí.
      */
     public VotingRound executeVotingRound(String requestId, String userMessage, 
                                          Map<String, Object> conversationContext,
@@ -91,67 +103,168 @@ public class LlmVotingService {
                 return executeSingleLlmMode(round);
             }
             
-            // Ejecutar votación paralela o secuencial
-            List<LlmVote> votes = parallelVoting ? 
-                executeParallelVoting(round) : executeSequentialVoting(round);
-            
-            round.setVotes(votes);
-            
-            // Calcular consenso
-            VotingConsensus consensus = calculateConsensus(votes, round);
-            round.setConsensus(consensus);
-            
-            round.setStatus(VotingRound.VotingStatus.COMPLETED);
-            round.setEndTime(LocalDateTime.now());
-            
-            logger.info("Ronda de votación {} completada exitosamente. Consenso: {}", 
-                       roundId, consensus);
+            // T3.2: Ejecutar sistema de debate mejorado
+            if (enableDebate && maxDebateRounds > 1) {
+                return executeDebateVotingRound(round);
+            } else {
+                // Modo de votación simple (sin debate)
+                return executeSimpleVotingRound(round);
+            }
             
         } catch (Exception e) {
-            logger.error("Error en ronda de votación {}: {}", roundId, e.getMessage(), e);
-            round.setStatus(VotingRound.VotingStatus.FAILED);
-            round.setErrorMessage(e.getMessage());
-            round.setEndTime(LocalDateTime.now());
-            
-            // Aplicar fallback
+            logger.error("Error en la ronda de votación {}: {}", roundId, e.getMessage(), e);
             return applyFallbackStrategy(round, e);
         } finally {
+            round.setEndTime(LocalDateTime.now());
+            round.setStatus(VotingRound.VotingStatus.COMPLETED);
             activeRounds.remove(roundId);
         }
+    }
+    
+    /**
+     * T3.2: Ejecuta una ronda de votación con debate entre múltiples LLMs.
+     * Los LLMs pueden debatir entre sí en múltiples rondas antes del consenso final.
+     */
+    private VotingRound executeDebateVotingRound(VotingRound round) {
+        logger.info("Iniciando debate entre {} LLMs para ronda {}", 
+                   votingConfiguration.getVotingSystem().getLlmParticipants().size(), 
+                   round.getRoundId());
+        
+        List<LlmVote> allVotes = new ArrayList<>();
+        VotingConsensus currentConsensus = null;
+        double previousConsensusConfidence = 0.0;
+        
+        // Ejecutar múltiples rondas de debate
+        for (int debateRound = 1; debateRound <= maxDebateRounds; debateRound++) {
+            logger.info("Ronda de debate {}/{} para {}", debateRound, maxDebateRounds, round.getRoundId());
+            
+            // Ejecutar votación en esta ronda
+            List<LlmVote> roundVotes;
+            try {
+                roundVotes = parallelVoting ? 
+                    executeParallelVoting(round, debateRound, allVotes) : 
+                    executeSequentialVoting(round, debateRound, allVotes);
+            } catch (InterruptedException | ExecutionException e) {
+                logger.error("Error en votación de ronda {}: {}", debateRound, e.getMessage());
+                roundVotes = new ArrayList<>();
+            }
+            
+            allVotes.addAll(roundVotes);
+            
+            // Calcular consenso actual
+            VotingConsensus roundConsensus = calculateConsensus(roundVotes, round);
+            currentConsensus = roundConsensus;
+            
+            logger.info("Consenso ronda {}: {} (confianza: {})", 
+                       debateRound, roundConsensus.getFinalIntent(), 
+                       roundConsensus.getConsensusConfidence());
+            
+            // Verificar si el debate ha mejorado significativamente el consenso
+            if (debateRound > 1) {
+                double confidenceImprovement = roundConsensus.getConsensusConfidence() - previousConsensusConfidence;
+                logger.info("Mejora en confianza: {} (umbral: {})", 
+                           confidenceImprovement, debateConsensusImprovementThreshold);
+                
+                // Si la mejora es mínima, terminar el debate
+                if (confidenceImprovement < debateConsensusImprovementThreshold) {
+                    logger.info("Mejora mínima en consenso, terminando debate en ronda {}", debateRound);
+                    break;
+                }
+            }
+            
+            previousConsensusConfidence = roundConsensus.getConsensusConfidence();
+            
+            // Si ya tenemos unanimidad, no necesitamos más rondas
+            if (roundConsensus.getAgreementLevel() == VotingConsensus.AgreementLevel.UNANIMOUS) {
+                logger.info("Unanimidad alcanzada en ronda {}, terminando debate", debateRound);
+                break;
+            }
+            
+            // Si no es la última ronda, preparar para la siguiente
+            if (debateRound < maxDebateRounds) {
+                // Pequeña pausa entre rondas de debate
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        
+        // Establecer el resultado final
+        round.setVotes(allVotes);
+        round.setConsensus(currentConsensus);
+        
+        logger.info("Debate completado para ronda {}: {} votos, consenso final: {} (confianza: {})", 
+                   round.getRoundId(), allVotes.size(), 
+                   currentConsensus.getFinalIntent(), 
+                   currentConsensus.getConsensusConfidence());
         
         return round;
     }
     
     /**
-     * Ejecuta votación en paralelo para todos los LLMs participantes.
+     * Ejecuta una ronda de votación simple (sin debate).
      */
-    private List<LlmVote> executeParallelVoting(VotingRound round) throws InterruptedException, ExecutionException {
+    private VotingRound executeSimpleVotingRound(VotingRound round) {
+        logger.info("Ejecutando votación simple para ronda {}", round.getRoundId());
+        
+        // Ejecutar votación paralela o secuencial
+        List<LlmVote> votes;
+        try {
+            votes = parallelVoting ? 
+                executeParallelVoting(round, 1, new ArrayList<>()) : 
+                executeSequentialVoting(round, 1, new ArrayList<>());
+        } catch (InterruptedException | ExecutionException e) {
+            logger.error("Error en votación simple: {}", e.getMessage());
+            votes = new ArrayList<>();
+        }
+        
+        round.setVotes(votes);
+        
+        // Calcular consenso
+        VotingConsensus consensus = calculateConsensus(votes, round);
+        round.setConsensus(consensus);
+        
+        logger.info("Votación simple completada para ronda {}: {} votos, consenso: {} (confianza: {})", 
+                   round.getRoundId(), votes.size(), 
+                   consensus.getFinalIntent(), 
+                   consensus.getConsensusConfidence());
+        
+        return round;
+    }
+    
+    /**
+     * Ejecuta votación paralela con soporte para debate.
+     */
+    private List<LlmVote> executeParallelVoting(VotingRound round, int debateRound, List<LlmVote> previousVotes) 
+            throws InterruptedException, ExecutionException {
+        
         List<VotingConfiguration.LlmParticipant> participants = 
             votingConfiguration.getVotingSystem().getLlmParticipants();
         
-        List<Future<LlmVote>> futures = new ArrayList<>();
+        List<Future<LlmVote>> voteFutures = new ArrayList<>();
         
-        // Iniciar votación paralela
+        // Crear tareas de votación para cada participante
         for (VotingConfiguration.LlmParticipant participant : participants) {
             Future<LlmVote> future = votingExecutor.submit(() -> 
-                executeSingleVote(round, participant));
-            futures.add(future);
+                executeSingleVote(round, participant, debateRound, previousVotes));
+            voteFutures.add(future);
         }
         
         // Recopilar resultados con timeout
         List<LlmVote> votes = new ArrayList<>();
-        for (Future<LlmVote> future : futures) {
+        for (Future<LlmVote> future : voteFutures) {
             try {
                 LlmVote vote = future.get(timeoutPerVote, TimeUnit.SECONDS);
                 votes.add(vote);
             } catch (TimeoutException e) {
-                logger.warn("Timeout en voto de LLM, marcando como fallido");
-                LlmVote timeoutVote = createTimeoutVote();
-                votes.add(timeoutVote);
+                logger.warn("Timeout en voto de LLM, creando voto de timeout");
+                votes.add(createTimeoutVote());
             } catch (Exception e) {
-                logger.warn("Error en voto de LLM: {}", e.getMessage());
-                LlmVote errorVote = createErrorVote(e.getMessage());
-                votes.add(errorVote);
+                logger.error("Error en voto paralelo: {}", e.getMessage());
+                votes.add(createErrorVote("Error en votación: " + e.getMessage()));
             }
         }
         
@@ -159,9 +272,9 @@ public class LlmVotingService {
     }
     
     /**
-     * Ejecuta votación secuencial para todos los LLMs participantes.
+     * Ejecuta votación secuencial con soporte para debate.
      */
-    private List<LlmVote> executeSequentialVoting(VotingRound round) {
+    private List<LlmVote> executeSequentialVoting(VotingRound round, int debateRound, List<LlmVote> previousVotes) {
         List<VotingConfiguration.LlmParticipant> participants = 
             votingConfiguration.getVotingSystem().getLlmParticipants();
         
@@ -169,14 +282,11 @@ public class LlmVotingService {
         
         for (VotingConfiguration.LlmParticipant participant : participants) {
             try {
-                LlmVote vote = executeSingleVote(round, participant);
+                LlmVote vote = executeSingleVote(round, participant, debateRound, previousVotes);
                 votes.add(vote);
             } catch (Exception e) {
-                logger.warn("Error en voto secuencial de LLM {}: {}", participant.getId(), e.getMessage());
-                LlmVote errorVote = createErrorVote(e.getMessage());
-                errorVote.setLlmId(participant.getId());
-                errorVote.setLlmName(participant.getName());
-                votes.add(errorVote);
+                logger.error("Error en voto secuencial de {}: {}", participant.getId(), e.getMessage());
+                votes.add(createErrorVote("Error en votación: " + e.getMessage()));
             }
         }
         
@@ -184,44 +294,131 @@ public class LlmVotingService {
     }
     
     /**
-     * Ejecuta un voto individual de un LLM.
+     * Ejecuta un voto individual con soporte para debate.
      */
-    private LlmVote executeSingleVote(VotingRound round, VotingConfiguration.LlmParticipant participant) {
+    private LlmVote executeSingleVote(VotingRound round, VotingConfiguration.LlmParticipant participant, 
+                                     int debateRound, List<LlmVote> previousVotes) {
+        
+        long startTime = System.currentTimeMillis();
         String voteId = generateVoteId(round.getRoundId(), participant.getId());
+        
         LlmVote vote = new LlmVote(voteId, participant.getId(), participant.getName(), null, 0.0);
         vote.setLlmRole(participant.getRole());
         vote.setLlmWeight(participant.getWeight());
         vote.setStatus(LlmVote.VoteStatus.IN_PROGRESS);
         
-        long startTime = System.currentTimeMillis();
-        
         try {
-            // Construir prompt personalizado
-            String prompt = buildVotingPrompt(round, participant);
+            logger.debug("Ejecutando voto {} para LLM {} (ronda {})", voteId, participant.getId(), debateRound);
+            
+            // Construir prompt según la ronda de debate
+            String prompt = buildDebatePrompt(round, participant, debateRound, previousVotes);
             
             // Obtener configuración del LLM
-            Optional<LlmConfiguration> llmConfig = llmConfigurationService.getLlmConfiguration(participant.getId());
-            if (llmConfig.isEmpty()) {
-                throw new RuntimeException("Configuración de LLM no encontrada: " + participant.getId());
+            Optional<LlmConfiguration> llmConfigOpt = llmConfigurationService.getLlmConfiguration(participant.getId());
+            if (llmConfigOpt.isEmpty()) {
+                throw new RuntimeException("Configuración LLM no encontrada para: " + participant.getId());
             }
+            LlmConfiguration llmConfig = llmConfigOpt.get();
             
-            // Ejecutar llamada al LLM (simulada por ahora)
-            String llmResponse = executeLlmCall(llmConfig.get(), prompt);
+            // Ejecutar llamada al LLM
+            String llmResponse = executeLlmCall(llmConfig, prompt);
             
-            // Parsear respuesta del LLM
+            // Parsear respuesta
             parseLlmVoteResponse(vote, llmResponse);
             
+            // Calcular tiempo de procesamiento
+            long processingTime = System.currentTimeMillis() - startTime;
+            vote.setProcessingTimeMs(processingTime);
             vote.setStatus(LlmVote.VoteStatus.COMPLETED);
             
+            logger.debug("Voto {} completado en {}ms: {} (confianza: {})", 
+                        voteId, processingTime, vote.getIntent(), vote.getConfidence());
+            
         } catch (Exception e) {
+            logger.error("Error en voto {}: {}", voteId, e.getMessage());
             vote.setStatus(LlmVote.VoteStatus.FAILED);
             vote.setErrorMessage(e.getMessage());
-            logger.error("Error en voto de LLM {}: {}", participant.getId(), e.getMessage());
-        } finally {
-            vote.setProcessingTimeMs(System.currentTimeMillis() - startTime);
         }
         
         return vote;
+    }
+    
+    /**
+     * T3.2: Construye prompt de debate que considera votos previos.
+     */
+    private String buildDebatePrompt(VotingRound round, VotingConfiguration.LlmParticipant participant, 
+                                    int debateRound, List<LlmVote> previousVotes) {
+        
+        StringBuilder prompt = new StringBuilder();
+        
+        // Prompt base según el rol del LLM
+        prompt.append(participant.getPromptTemplate()).append("\n\n");
+        
+        // Información del contexto
+        prompt.append("Petición del usuario: ").append(round.getUserMessage()).append("\n");
+        
+        if (round.getConversationContext() != null && !round.getConversationContext().isEmpty()) {
+            prompt.append("Contexto de conversación: ").append(formatConversationContext(round.getConversationContext())).append("\n");
+        }
+        
+        if (round.getConversationHistory() != null && !round.getConversationHistory().isEmpty()) {
+            prompt.append("Historial de conversación: ").append(formatConversationHistory(round.getConversationHistory())).append("\n");
+        }
+        
+        // T3.2: Si es una ronda de debate posterior, incluir votos previos
+        if (debateRound > 1 && !previousVotes.isEmpty()) {
+            prompt.append("\n=== DEBATE EN CURSO ===\n");
+            prompt.append("Esta es la ronda de debate ").append(debateRound).append(". ");
+            prompt.append("Considera los votos de otros expertos y explica si mantienes tu posición o la cambias:\n\n");
+            
+            for (LlmVote prevVote : previousVotes) {
+                if (prevVote.isValid()) {
+                    prompt.append("Voto de ").append(prevVote.getLlmName()).append(" (").append(prevVote.getLlmRole()).append("):\n");
+                    prompt.append("- Intención: ").append(prevVote.getIntent()).append("\n");
+                    prompt.append("- Confianza: ").append(prevVote.getConfidence()).append("\n");
+                    if (prevVote.getReasoning() != null) {
+                        prompt.append("- Razonamiento: ").append(prevVote.getReasoning()).append("\n");
+                    }
+                    if (prevVote.getEntities() != null && !prevVote.getEntities().isEmpty()) {
+                        prompt.append("- Entidades: ").append(prevVote.getEntities()).append("\n");
+                    }
+                    prompt.append("\n");
+                }
+            }
+            
+            prompt.append("Como ").append(participant.getName()).append(", ");
+            prompt.append("analiza estos votos y proporciona tu voto final considerando los argumentos de otros expertos.\n");
+            prompt.append("Si cambias tu posición, explica por qué. Si la mantienes, refuerza tu argumento.\n\n");
+        }
+        
+        // Acciones MCP disponibles
+        Map<String, McpAction> allActions = mcpActionRegistry.getAllActions();
+        if (!allActions.isEmpty()) {
+            List<String> actionNames = new ArrayList<>(allActions.keySet());
+            prompt.append("Acciones MCP disponibles: ").append(String.join(", ", actionNames)).append("\n\n");
+        }
+        
+        // Instrucciones específicas para debate
+        if (debateRound > 1) {
+            prompt.append("INSTRUCCIONES PARA DEBATE:\n");
+            prompt.append("1. Considera cuidadosamente los votos de otros expertos\n");
+            prompt.append("2. Si hay desacuerdo, explica tu razonamiento\n");
+            prompt.append("3. Si cambias tu posición, justifica el cambio\n");
+            prompt.append("4. Mantén un enfoque constructivo y colaborativo\n");
+            prompt.append("5. Proporciona un nivel de confianza realista\n\n");
+        }
+        
+        prompt.append("Responde en formato JSON:\n");
+        prompt.append("{\n");
+        prompt.append("  \"intent\": \"nombre_intencion\",\n");
+        prompt.append("  \"entities\": {\"entidad\": \"valor\"},\n");
+        prompt.append("  \"confidence\": 0.0-1.0,\n");
+        prompt.append("  \"reasoning\": \"explicación detallada\",\n");
+        prompt.append("  \"subtasks\": [{\"action\": \"accion\", \"entities\": {}}],\n");
+        prompt.append("  \"debate_response\": \"respuesta a otros expertos si aplica\"\n");
+        prompt.append("}");
+        
+        return prompt.toString();
     }
     
     /**
