@@ -1,6 +1,16 @@
 {
   "version": "1.0.0",
-  "description": "MCP Services Registry - Available actions and their configurations",
+  "description": "MCP Services Registry - Available actions and their configurations with LLM-RAG + MoE Architecture",
+  "global_settings": {
+    "default_timeout": 30,
+    "default_retry_attempts": 3,
+    "default_health_check_interval": 60,
+    "circuit_breaker_enabled": true,
+    "circuit_breaker_threshold": 5,
+    "enable_health_checks": true,
+    "enable_metrics": true,
+    "log_requests": true
+  },
   "services": {
     "weather-mcp": {
       "name": "Weather Service",
