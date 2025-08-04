@@ -52,6 +52,16 @@ rag:
     enable-intent-clustering: ${RAG_SIMILARITY_ENABLE_INTENT_CLUSTERING:true}
     max-cluster-size: ${RAG_SIMILARITY_MAX_CLUSTER_SIZE:3}
     enable-semantic-boosting: ${RAG_SIMILARITY_ENABLE_SEMANTIC_BOOSTING:true}
+  prompt:
+    strategy: ${RAG_PROMPT_STRATEGY:adaptive}
+    max-context-length: ${RAG_PROMPT_MAX_CONTEXT_LENGTH:3000}
+    enable-chain-of-thought: ${RAG_PROMPT_ENABLE_CHAIN_OF_THOUGHT:true}
+    enable-contextual-hints: ${RAG_PROMPT_ENABLE_CONTEXTUAL_HINTS:true}
+    enable-entity-extraction: ${RAG_PROMPT_ENABLE_ENTITY_EXTRACTION:true}
+    enable-confidence-calibration: ${RAG_PROMPT_ENABLE_CONFIDENCE_CALIBRATION:true}
+    temperature: ${RAG_PROMPT_TEMPERATURE:0.3}
+    max-tokens: ${RAG_PROMPT_MAX_TOKENS:2048}
+    language: ${RAG_PROMPT_LANGUAGE:es}
 
 # Configuración de LLMs
 llm:

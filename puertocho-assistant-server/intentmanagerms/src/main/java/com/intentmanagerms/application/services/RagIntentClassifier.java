@@ -34,9 +34,12 @@ public class RagIntentClassifier {
     @Autowired
     private IntentConfigManager intentConfigManager;
     
-    @Autowired
+        @Autowired
     private LlmConfigurationService llmConfigurationService;
-    
+
+    @Autowired
+    private DynamicPromptEngineeringService promptEngineeringService;
+
     @Value("${rag.classifier.default-max-examples:5}")
     private int defaultMaxExamples;
     
@@ -107,8 +110,8 @@ public class RagIntentClassifier {
                 return handleNoRelevantExamples(request, result, startTime);
             }
             
-            // Paso 4: Construir prompt contextual
-            String contextualPrompt = buildContextualPrompt(request.getText(), relevantExamples);
+            // Paso 4: Construir prompt dinámico usando el servicio especializado
+            String contextualPrompt = promptEngineeringService.buildDynamicPrompt(request, relevantExamples);
             result.setPromptUsed(contextualPrompt);
             
             // Paso 5: Clasificar usando LLM
@@ -183,41 +186,7 @@ public class RagIntentClassifier {
                 .collect(Collectors.toList());
     }
     
-    /**
-     * Construye prompt contextual con ejemplos RAG
-     */
-    private String buildContextualPrompt(String inputText, List<EmbeddingDocument> examples) {
-        StringBuilder prompt = new StringBuilder();
-        
-        prompt.append("Eres un clasificador de intenciones experto. Tu tarea es clasificar la intención del usuario basándote en ejemplos similares.\n\n");
-        
-        prompt.append("EJEMPLOS DE ENTRENAMIENTO:\n");
-        for (int i = 0; i < examples.size(); i++) {
-            EmbeddingDocument example = examples.get(i);
-            prompt.append(String.format("%d. Texto: \"%s\" → Intención: %s (similitud: %.3f)\n", 
-                i + 1, example.getContent(), example.getIntent(), example.getSimilarity()));
-        }
-        
-        prompt.append("\nTEXTO A CLASIFICAR:\n");
-        prompt.append("\"").append(inputText).append("\"\n\n");
-        
-        prompt.append("INSTRUCCIONES:\n");
-        prompt.append("1. Analiza el texto del usuario\n");
-        prompt.append("2. Compara con los ejemplos proporcionados\n");
-        prompt.append("3. Identifica la intención más probable\n");
-        prompt.append("4. Extrae entidades relevantes si las hay\n");
-        prompt.append("5. Responde en formato JSON:\n");
-        prompt.append("{\n");
-        prompt.append("  \"intent_id\": \"nombre_de_la_intencion\",\n");
-        prompt.append("  \"confidence\": 0.85,\n");
-        prompt.append("  \"entities\": {\"entidad\": \"valor\"},\n");
-        prompt.append("  \"reasoning\": \"explicación breve\"\n");
-        prompt.append("}\n\n");
-        
-        prompt.append("RESPUESTA:");
-        
-        return prompt.toString();
-    }
+
     
     /**
      * Clasifica usando LLM

@@ -317,7 +317,7 @@ MOE_LLM_C_MODEL=gpt-3.5-turbo
 |----|-------------|--------------|--------|
 | T2.1 | Crear `RagIntentClassifier` con embeddings vectoriales para few-shot learning | T1.3, T1.4 | ✅ |
 | T2.2 | Implementar sistema de similarity search para ejemplos de intenciones | T2.1 | ✅ |
-| T2.3 | Desarrollar prompt engineering dinámico con contexto RAG | T2.1 | ⏳ |
+| T2.3 | Desarrollar prompt engineering dinámico con contexto RAG | T2.1 | ✅ |
 | T2.4 | Añadir confidence scoring usando múltiples métricas | T2.2 | ⏳ |
 | T2.5 | Crear fallback inteligente con degradación gradual | T2.4 | ⏳ |
 
@@ -550,6 +550,159 @@ RAG_SIMILARITY_ENABLE_SEMANTIC_BOOSTING=true
 ✅ Tests: 100% exitosas
 ```
 
+### **T2.3 ✅ - Dynamic Prompt Engineering Service**
+**Archivos Implementados:**
+- ✅ `DynamicPromptEngineeringService.java` - Servicio principal de prompt engineering dinámico
+- ✅ `DynamicPromptEngineeringController.java` - API REST con 5 endpoints especializados
+- ✅ `test_prompt_engineering.py` - Script de pruebas automatizadas completo
+- ✅ `application.yml` - Configuración de prompt engineering actualizada
+
+**Funcionalidades Implementadas:**
+- ✅ **5 Estrategias de Prompt**: Adaptive, Few-shot, Zero-shot, Chain-of-thought, Expert-domain
+- ✅ **Análisis de Calidad**: Evaluación automática de similitud de ejemplos (HIGH/MEDIUM/LOW)
+- ✅ **Prompts Adaptativos**: Se ajustan según la calidad de los ejemplos disponibles
+- ✅ **Optimización de Contexto**: Control de longitud de prompt y truncamiento inteligente
+- ✅ **Personalización por Dominio**: Expertise específico por dominio (weather, smart_home, etc.)
+- ✅ **Metadata Contextual**: Timestamp, sesión, idioma y contexto adicional
+- ✅ **Calibración de Confianza**: Instrucciones específicas para scoring de confianza
+
+**API REST Disponible:**
+```bash
+POST /api/v1/prompt-engineering/build              # Prompt con estrategia por defecto
+POST /api/v1/prompt-engineering/build/adaptive     # Prompt adaptativo
+POST /api/v1/prompt-engineering/build/few-shot     # Prompt few-shot
+POST /api/v1/prompt-engineering/build/zero-shot    # Prompt zero-shot
+POST /api/v1/prompt-engineering/build/chain-of-thought # Prompt chain-of-thought
+POST /api/v1/prompt-engineering/build/expert-domain    # Prompt por dominio experto
+GET  /api/v1/prompt-engineering/strategies         # Estrategias disponibles
+GET  /api/v1/prompt-engineering/statistics         # Estadísticas del servicio
+GET  /api/v1/prompt-engineering/health             # Health check
+POST /api/v1/prompt-engineering/test               # Test automatizado
+```
+
+**Configuración de Prompt Engineering:**
+```yaml
+rag:
+  prompt:
+    strategy: ${RAG_PROMPT_STRATEGY:adaptive}
+    max-context-length: ${RAG_PROMPT_MAX_CONTEXT_LENGTH:3000}
+    enable-chain-of-thought: ${RAG_PROMPT_ENABLE_CHAIN_OF_THOUGHT:true}
+    enable-contextual-hints: ${RAG_PROMPT_ENABLE_CONTEXTUAL_HINTS:true}
+    enable-entity-extraction: ${RAG_PROMPT_ENABLE_ENTITY_EXTRACTION:true}
+    enable-confidence-calibration: ${RAG_PROMPT_ENABLE_CONFIDENCE_CALIBRATION:true}
+    temperature: ${RAG_PROMPT_TEMPERATURE:0.3}
+    max-tokens: ${RAG_PROMPT_MAX_TOKENS:2048}
+    language: ${RAG_PROMPT_LANGUAGE:es}
+```
+
+**Pruebas Automatizadas:**
+```bash
+✅ 11/11 pruebas pasaron exitosamente (100% éxito)
+✅ Verificación de disponibilidad: PASÓ
+✅ Health check del servicio: PASÓ
+✅ Estadísticas del servicio: PASÓ
+✅ Estrategias disponibles: PASÓ
+✅ Construcción de prompt adaptativo: PASÓ
+✅ Construcción de prompt few-shot: PASÓ
+✅ Construcción de prompt zero-shot: PASÓ
+✅ Construcción de prompt chain-of-thought: PASÓ
+✅ Construcción de prompt por dominio experto: PASÓ
+✅ Test automatizado del servicio: PASÓ
+✅ Manejo de errores: PASÓ
+```
+
+**Características del Servicio:**
+- ✅ **Estrategias Múltiples**: 5 estrategias diferentes de prompt engineering
+- ✅ **Análisis de Calidad**: Evaluación automática de similitud de ejemplos
+- ✅ **Prompts Contextuales**: Incluyen metadata de sesión, timestamp y contexto
+- ✅ **Optimización Inteligente**: Control de longitud y truncamiento automático
+- ✅ **Dominios Especializados**: Expertise específico por tipo de intención
+- ✅ **Calibración de Confianza**: Instrucciones detalladas para scoring
+- ✅ **Integración Completa**: Con motor RAG y vector store
+
+**Ejemplos de Prompts Generados:**
+
+**Adaptativo (Alta Calidad):**
+```
+=== CLASIFICACIÓN DE INTENCIONES - CONTEXTO DINÁMICO ===
+Timestamp: 2025-08-04T16:54:09.673642025
+Idioma: ES
+==================================================
+
+EJEMPLOS DE ALTA CALIDAD (Similitud promedio: 0.850):
+
+INTENCIÓN: consultar_tiempo
+  ✓ "¿qué tiempo hace?" (0.850)
+
+TEXTO A CLASIFICAR: "¿qué tiempo hace en Madrid?"
+
+INSTRUCCIONES ESPECÍFICAS:
+1. Los ejemplos proporcionados son de alta calidad y muy relevantes
+2. Usa estos ejemplos como referencia principal para la clasificación
+3. Extrae entidades específicas mencionadas en el texto
+4. Proporciona un nivel de confianza alto si hay similitud clara
+```
+
+**Chain-of-Thought:**
+```
+Eres un clasificador de intenciones experto. Analiza el siguiente texto paso a paso:
+
+PASO 1 - ANÁLISIS DEL TEXTO:
+Texto: "¿qué tiempo hace en Madrid?"
+Analiza las palabras clave, el tono y el contexto del mensaje.
+
+PASO 2 - EJEMPLOS SIMILARES:
+Ejemplo 1: "¿qué tiempo hace?" → consultar_tiempo (similitud: 0.850)
+
+PASO 3 - RAZONAMIENTO:
+Compara el texto con los ejemplos y explica tu razonamiento.
+
+PASO 4 - CLASIFICACIÓN:
+Basándote en tu análisis, proporciona la clasificación final en formato JSON.
+```
+
+**Expert Domain:**
+```
+Eres un experto en el dominio: weather
+
+Tu especialización incluye:
+- Consultas meteorológicas y climáticas
+- Predicciones del tiempo
+- Condiciones ambientales
+
+EJEMPLOS DE TU DOMINIO:
+1. "¿qué tiempo hace?" → consultar_tiempo
+2. "dime el clima de Barcelona" → consultar_tiempo
+3. "cómo está el tiempo hoy" → consultar_tiempo
+
+TEXTO A CLASIFICAR: "¿qué tiempo hace en Madrid?"
+
+Como experto en weather, clasifica la intención del usuario.
+```
+
+**Variables de Entorno Clave:**
+```bash
+RAG_PROMPT_STRATEGY=adaptive
+RAG_PROMPT_MAX_CONTEXT_LENGTH=3000
+RAG_PROMPT_ENABLE_CHAIN_OF_THOUGHT=true
+RAG_PROMPT_ENABLE_ENTITY_EXTRACTION=true
+RAG_PROMPT_ENABLE_CONFIDENCE_CALIBRATION=true
+RAG_PROMPT_TEMPERATURE=0.3
+RAG_PROMPT_MAX_TOKENS=2048
+RAG_PROMPT_LANGUAGE=es
+```
+
+**Estado de Salud del Servicio:**
+```
+✅ Dynamic Prompt Engineering Service: HEALTHY
+✅ Strategies: 5 disponibles (adaptive, few-shot, zero-shot, chain-of-thought, expert-domain)
+✅ Features enabled: quality_analysis, context_optimization, domain_expertise
+✅ Integration: RAG Classifier + Intent Config Manager
+✅ Performance: Optimized with length control
+✅ API REST: 10 endpoints operativos
+✅ Tests: 100% exitosas
+```
+
 **Descripción del Epic**: Implementar el motor de Retrieval Augmented Generation (RAG) que reemplaza completamente el sistema RASA/DU. Utiliza embeddings vectoriales para realizar few-shot learning con ejemplos de intenciones almacenados dinámicamente. El sistema busca ejemplos similares, construye prompts contextuales y classifica intenciones sin necesidad de entrenamiento tradicional.
 
 **Objetivos clave**:
@@ -562,8 +715,8 @@ RAG_SIMILARITY_ENABLE_SEMANTIC_BOOSTING=true
 | ID | Descripción | Dependencias | Estado |
 |----|-------------|--------------|--------|
 | T2.1 | Crear `RagIntentClassifier` con embeddings vectoriales para few-shot learning | T1.3, T1.4 | ✅ |
-| T2.2 | Implementar sistema de similarity search para ejemplos de intenciones | T2.1 | ⏳ |
-| T2.3 | Desarrollar prompt engineering dinámico con contexto RAG | T2.1 | ⏳ |
+| T2.2 | Implementar sistema de similarity search para ejemplos de intenciones | T2.1 | ✅ |
+| T2.3 | Desarrollar prompt engineering dinámico con contexto RAG | T2.1 | ✅ |
 | T2.4 | Añadir confidence scoring usando múltiples métricas | T2.2 | ⏳ |
 | T2.5 | Crear fallback inteligente con degradación gradual | T2.4 | ⏳ |
 
@@ -712,9 +865,9 @@ RAG_SIMILARITY_ENABLE_SEMANTIC_BOOSTING=true
 
 ### **📊 Progreso Actual:**
 - **Epic 1**: 5/5 tareas completadas (100%) ✅
-- **Epic 2**: 2/5 tareas completadas (40%) - T2.1 ✅, T2.2 ✅
+- **Epic 2**: 3/5 tareas completadas (60%) - T2.1 ✅, T2.2 ✅, T2.3 ✅
 - **Epic 3**: Base preparada, pendiente implementación completa
-- **Total General**: 7/50 tareas completadas (14%)
+- **Total General**: 8/50 tareas completadas (16%)
 
 ---
 
@@ -814,13 +967,13 @@ RAG_SIMILARITY_ENABLE_SEMANTIC_BOOSTING=true
                                      │  Confidence)    │
                                      └─────────────────┘
                                               │
-                                              ▼
-                                     ┌─────────────────┐
+                         ▼
+                ┌─────────────────┐
                                      │ FALLBACK        │
                                      │ SYSTEM          │
                                      │ (Intelligent    │
                                      │  Degradation)   │
-                                     └─────────────────┘
+                └─────────────────┘
 ```
 
 ---
