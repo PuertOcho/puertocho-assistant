@@ -1,6 +1,14 @@
 {
   "version": "1.0.0",
-  "description": "Intent examples for RAG-based classification",
+  "description": "Intent examples for RAG-based classification with LLM-RAG + MoE Architecture",
+  "global_settings": {
+    "default_confidence_threshold": 0.7,
+    "default_max_examples_for_rag": 5,
+    "enable_hot_reload": true,
+    "reload_interval_seconds": 30,
+    "fallback_intent": "ayuda",
+    "unknown_intent_response": "Lo siento, no entiendo esa petición. ¿Puedes reformularla o pedir ayuda para ver qué puedo hacer?"
+  },
   "intents": {
     "consultar_tiempo": {
       "description": "Consultar información meteorológica de una ubicación",
@@ -11,12 +19,19 @@
         "va a llover hoy?",
         "qué temperatura hace en Madrid",
         "necesito saber el pronóstico del tiempo",
-        "consulta el tiempo de mañana"
+        "consulta el tiempo de mañana",
+        "¿hace frío hoy?",
+        "dime si va a llover esta tarde"
       ],
       "required_entities": ["ubicacion"],
+      "optional_entities": ["fecha"],
       "mcp_action": "consultar_tiempo",
+      "expert_domain": "weather",
+      "confidence_threshold": 0.75,
+      "max_examples_for_rag": 6,
       "slot_filling_questions": {
-        "ubicacion": "¿De qué ciudad quieres consultar el tiempo?"
+        "ubicacion": "¿De qué ciudad quieres consultar el tiempo?",
+        "fecha": "¿Para qué fecha quieres el pronóstico?"
       }
     },
     "encender_luz": {
@@ -27,10 +42,15 @@
         "ilumina la habitación",
         "pon la luz del salón",
         "activa las luces",
-        "luz encendida por favor"
+        "luz encendida por favor",
+        "enciende las luces del dormitorio",
+        "ilumina el comedor"
       ],
       "required_entities": ["lugar"],
       "mcp_action": "smart_home_light_on",
+      "expert_domain": "smart_home",
+      "confidence_threshold": 0.8,
+      "max_examples_for_rag": 5,
       "slot_filling_questions": {
         "lugar": "¿En qué habitación quieres encender la luz?"
       }
@@ -42,10 +62,15 @@
         "apaga las luces del dormitorio",
         "quita la luz",
         "desactiva la iluminación",
-        "oscurece la habitación"
+        "oscurece la habitación",
+        "apaga las luces del salón",
+        "desconecta la iluminación"
       ],
       "required_entities": ["lugar"],
       "mcp_action": "smart_home_light_off",
+      "expert_domain": "smart_home",
+      "confidence_threshold": 0.8,
+      "max_examples_for_rag": 5,
       "slot_filling_questions": {
         "lugar": "¿En qué habitación quieres apagar la luz?"
       }
@@ -58,11 +83,16 @@
         "quiero escuchar música",
         "pon algo de jazz",
         "reproduce mi playlist favorita",
-        "música relajante por favor"
+        "música relajante por favor",
+        "pon música de rock",
+        "reproduce algo de clásica"
       ],
       "required_entities": [],
       "optional_entities": ["artista", "genero", "cancion"],
       "mcp_action": "smart_home_play_music",
+      "expert_domain": "entertainment",
+      "confidence_threshold": 0.75,
+      "max_examples_for_rag": 6,
       "slot_filling_questions": {
         "artista": "¿Qué artista quieres escuchar?",
         "genero": "¿Qué género musical prefieres?",
@@ -76,10 +106,16 @@
         "detén la canción",
         "pausa la música",
         "silencio",
-        "stop música"
+        "stop música",
+        "para la reproducción",
+        "detén la música"
       ],
       "required_entities": [],
-      "mcp_action": "smart_home_stop_music"
+      "mcp_action": "smart_home_stop_music",
+      "expert_domain": "entertainment",
+      "confidence_threshold": 0.85,
+      "max_examples_for_rag": 4,
+      "slot_filling_questions": {}
     },
     "programar_alarma": {
       "description": "Programar una alarma para una fecha y hora específica",
@@ -88,11 +124,16 @@
         "despiértame mañana a las 7",
         "programa una alarma para las 8:30",
         "quiero una alarma",
-        "avísame en 2 horas"
+        "avísame en 2 horas",
+        "despiértame a las 6 de la mañana",
+        "programa una alarma para mañana"
       ],
       "required_entities": ["fecha_hora"],
       "optional_entities": ["mensaje"],
       "mcp_action": "programar_alarma",
+      "expert_domain": "system",
+      "confidence_threshold": 0.8,
+      "max_examples_for_rag": 5,
       "slot_filling_questions": {
         "fecha_hora": "¿A qué hora quieres que te despierte?",
         "mensaje": "¿Qué mensaje quieres que tenga la alarma?"
@@ -105,11 +146,16 @@
         "reporta un bug",
         "abre un ticket en github",
         "documenta este problema en github",
-        "añade un issue sobre esto"
+        "añade un issue sobre esto",
+        "crea un issue para este bug",
+        "reporta este problema en github"
       ],
       "required_entities": ["titulo"],
       "optional_entities": ["descripcion", "repositorio"],
       "mcp_action": "github_create_issue",
+      "expert_domain": "development",
+      "confidence_threshold": 0.75,
+      "max_examples_for_rag": 5,
       "slot_filling_questions": {
         "titulo": "¿Cuál es el título del issue?",
         "descripcion": "¿Qué descripción quieres añadir al issue?",
@@ -123,11 +169,16 @@
         "cambia la story a completada",
         "marca como hecho en taiga",
         "actualiza el proyecto",
-        "modifica la historia en taiga"
+        "modifica la historia en taiga",
+        "cambia el estado de la story",
+        "marca la tarea como terminada"
       ],
       "required_entities": ["story_id", "estado"],
       "optional_entities": ["comentario"],
       "mcp_action": "taiga_update_story",
+      "expert_domain": "project_management",
+      "confidence_threshold": 0.75,
+      "max_examples_for_rag": 5,
       "slot_filling_questions": {
         "story_id": "¿Cuál es el ID de la historia que quieres actualizar?",
         "estado": "¿A qué estado quieres cambiar la historia?",
@@ -142,10 +193,15 @@
         "buenas tardes",
         "hey",
         "saludos",
-        "qué tal"
+        "qué tal",
+        "buenas noches",
+        "hola asistente"
       ],
       "required_entities": [],
       "mcp_action": "simple_response",
+      "expert_domain": "general",
+      "confidence_threshold": 0.9,
+      "max_examples_for_rag": 4,
       "simple_response": "¡Hola! Soy tu asistente de PuertoCho. ¿En qué puedo ayudarte?"
     },
     "ayuda": {
@@ -156,11 +212,51 @@
         "cuáles son tus funciones",
         "help",
         "asistencia",
-        "qué comandos tienes"
+        "qué comandos tienes",
+        "dime qué puedes hacer",
+        "muéstrame tus capacidades"
       ],
       "required_entities": [],
       "mcp_action": "simple_response",
+      "expert_domain": "general",
+      "confidence_threshold": 0.85,
+      "max_examples_for_rag": 5,
       "simple_response": "Puedo ayudarte con: control de luces, música, consultar el tiempo, programar alarmas, gestionar GitHub y Taiga. También puedo manejar múltiples tareas en una sola petición."
+    },
+    "despedida": {
+      "description": "Despedida o finalización de conversación",
+      "examples": [
+        "adiós",
+        "hasta luego",
+        "nos vemos",
+        "chao",
+        "hasta la vista",
+        "que tengas un buen día",
+        "gracias, hasta luego"
+      ],
+      "required_entities": [],
+      "mcp_action": "simple_response",
+      "expert_domain": "general",
+      "confidence_threshold": 0.9,
+      "max_examples_for_rag": 4,
+      "simple_response": "¡Hasta luego! Ha sido un placer ayudarte. ¡Que tengas un buen día!"
+    },
+    "agradecimiento": {
+      "description": "Expresión de agradecimiento",
+      "examples": [
+        "gracias",
+        "muchas gracias",
+        "te agradezco",
+        "muy amable",
+        "gracias por tu ayuda",
+        "perfecto, gracias"
+      ],
+      "required_entities": [],
+      "mcp_action": "simple_response",
+      "expert_domain": "general",
+      "confidence_threshold": 0.85,
+      "max_examples_for_rag": 4,
+      "simple_response": "¡De nada! Estoy aquí para ayudarte. ¿Hay algo más en lo que pueda asistirte?"
     }
   }
 }

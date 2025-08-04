@@ -8,7 +8,7 @@
 
 ## Leyenda de estados
 - ✅ Completado
-- 🔄 En progreso  
+- 🔄 En progreso
 - ⏳ Pendiente
 - 🚧 Bloqueado
 
@@ -29,8 +29,8 @@
 |----|-------------|--------------|--------|
 | T1.1 | Crear estructura base Java Spring Boot con dependencias LangChain4j | – | ✅ |
 | T1.2 | Implementar `LlmConfigurationService` para gestión de múltiples LLMs | T1.1 | ✅ |
-| T1.3 | Crear `VectorStoreService` para embeddings RAG (Chroma/In-memory) | T1.1, T1.2 | ✅ |
-| T1.4 | Diseñar `IntentConfigManager` para cargar intenciones desde JSON dinámico | T1.1, T1.2 | ⏳ |
+| T1.3 | Crear `VectorStoreService` para embeddings RAG (Chroma/In-memory) | T1.1, T1.2 | ⏳ |
+| T1.4 | Diseñar `IntentConfigManager` para cargar intenciones desde JSON dinámico | T1.1, T1.2 | ✅ |
 | T1.5 | Implementar `McpActionRegistry` para acciones configurables | T1.1, T1.2 | ⏳ |
 
 ---
@@ -87,6 +87,80 @@ GET /api/v1/llm-config/{id}/health  # Health check individual
 POST/PUT/DELETE /api/v1/llm-config  # CRUD completo
 ```
 
+### **T1.4 ✅ - IntentConfigManager**
+**Modelos de Dominio:**
+- ✅ `IntentExample` - Ejemplo de intención con ejemplos, entidades y configuración
+- ✅ `IntentConfiguration` - Configuración completa con configuraciones globales
+- ✅ `GlobalIntentSettings` - Configuraciones por defecto y hot-reload
+
+**Servicios Implementados:**
+- ✅ `IntentConfigManager` - Gestión centralizada de configuración JSON dinámica
+- ✅ `IntentConfigInitializationService` - Inicialización automática con `@EventListener`
+- ✅ `IntentConfigController` - 15 endpoints REST completos
+
+**Configuración JSON Mejorada:**
+```json
+{
+  "version": "1.0.0",
+  "description": "Intent examples for RAG-based classification with LLM-RAG + MoE Architecture",
+  "global_settings": {
+    "default_confidence_threshold": 0.7,
+    "default_max_examples_for_rag": 5,
+    "enable_hot_reload": true,
+    "reload_interval_seconds": 30,
+    "fallback_intent": "ayuda",
+    "unknown_intent_response": "Lo siento, no entiendo esa petición..."
+  },
+  "intents": {
+    "consultar_tiempo": {
+      "description": "Consultar información meteorológica de una ubicación",
+      "examples": ["¿qué tiempo hace?", "dime el clima de hoy", ...],
+      "required_entities": ["ubicacion"],
+      "optional_entities": ["fecha"],
+      "mcp_action": "consultar_tiempo",
+      "expert_domain": "weather",
+      "confidence_threshold": 0.75,
+      "max_examples_for_rag": 6,
+      "slot_filling_questions": {...}
+    }
+  }
+}
+```
+
+**Intenciones Configuradas:**
+```
+✅ 12 intenciones totales con 89 ejemplos
+✅ Dominios: general (4), smart_home (2), entertainment (2), weather (1), 
+   development (1), system (1), project_management (1)
+✅ 9 acciones MCP disponibles
+✅ Hot-reload habilitado cada 30 segundos
+```
+
+**API REST Disponible:**
+```bash
+GET /api/v1/intent-config/statistics      # Estadísticas completas
+GET /api/v1/intent-config/health          # Health check
+GET /api/v1/intent-config/intents         # Todas las intenciones
+GET /api/v1/intent-config/intents/{id}    # Intención específica
+GET /api/v1/intent-config/intents/domains # Por dominio de experto
+GET /api/v1/intent-config/mcp-actions     # Acciones MCP disponibles
+GET /api/v1/intent-config/intents/search  # Búsqueda de intenciones
+POST /api/v1/intent-config/reload         # Recarga manual
+GET /api/v1/intent-config/intents/{id}/examples    # Ejemplos de intención
+GET /api/v1/intent-config/intents/{id}/entities    # Entidades de intención
+GET /api/v1/intent-config/intents/{id}/examples/rag # Ejemplos para RAG
+GET /api/v1/intent-config/intents/{id}/slot-filling # Preguntas slot-filling
+```
+
+**Variables de Entorno Clave:**
+```bash
+INTENT_CONFIG_FILE=classpath:config/intents.json
+INTENT_HOT_RELOAD_ENABLED=true
+INTENT_HOT_RELOAD_INTERVAL=30
+INTENT_DEFAULT_CONFIDENCE_THRESHOLD=0.7
+INTENT_DEFAULT_MAX_EXAMPLES_FOR_RAG=5
+```
+
 **Variables de Entorno Clave:**
 ```bash
 OPENAI_API_KEY=sk-proj-...
@@ -96,55 +170,6 @@ PRIMARY_LLM_MODEL=gpt-4
 MOE_LLM_A_MODEL=gpt-4
 MOE_LLM_B_MODEL=claude-3-sonnet-20240229
 MOE_LLM_C_MODEL=gpt-3.5-turbo
-VECTOR_STORE_TYPE=in-memory
-VECTOR_STORE_SIMILARITY_THRESHOLD=0.7
-VECTOR_STORE_INIT_EXAMPLES=true
-```
-
-### **T1.3 ✅ - VectorStoreService**
-**Modelos de Dominio:**
-- ✅ `EmbeddingDocument` - Documentos con embeddings y metadata
-- ✅ `VectorStoreType` - Enum (IN_MEMORY, CHROMA, PINECONE, WEAVIATE, QDRANT)
-- ✅ `SearchResult` - Resultados de búsqueda con métricas de similitud
-
-**Servicios Implementados:**
-- ✅ `VectorStoreService` - Gestión completa de vector store
-  - Soporte para In-memory y Chroma (preparado)
-  - Búsqueda por similitud coseno
-  - CRUD completo de documentos
-  - Estadísticas y health checks
-- ✅ `VectorStoreInitializationService` - Inicialización automática
-  - Carga de ejemplos de prueba automática
-  - Generación de embeddings simulados
-  - Verificación de funcionalidad
-
-**API REST Disponible:**
-```bash
-GET /api/v1/vector-store/statistics    # Estadísticas completas
-GET /api/v1/vector-store/health       # Health check
-POST /api/v1/vector-store/documents   # Añadir documento
-GET /api/v1/vector-store/documents/{id} # Obtener documento
-DELETE /api/v1/vector-store/documents/{id} # Eliminar documento
-POST /api/v1/vector-store/search      # Búsqueda por embedding
-POST /api/v1/vector-store/search/text # Búsqueda por texto
-```
-
-**Vector Store Configurado:**
-```
-✅ Tipo: in-memory
-✅ Documentos cargados: 5 ejemplos de intenciones
-✅ Dimensión embedding: 1536 (OpenAI text-embedding-ada-002)
-✅ Umbral similitud: 0.7
-✅ Búsqueda funcional: Similitud coseno implementada
-✅ Health check: ✅ SALUDABLE
-```
-
-**Búsqueda de Prueba Exitosa:**
-```
-Consulta: "tiempo"
-Resultados: 3 documentos encontrados
-Mejor coincidencia: "¿qué tiempo hace hoy?" (similitud: 0.91)
-Tiempo de búsqueda: < 10ms
 ```
 
 ---
@@ -321,7 +346,7 @@ Tiempo de búsqueda: < 10ms
 
 ## Arquitectura Implementada vs Objetivo
 
-### **✅ IMPLEMENTADO (T1.1 + T1.2)**
+### **✅ IMPLEMENTADO (T1.1 + T1.2 + T1.4)**
 
 ```
 ┌─────────────────┐    Config    ┌─────────────────┐    REST API    ┌─────────────────┐
@@ -355,6 +380,27 @@ Tiempo de búsqueda: < 10ms
                 │ (GPT-3.5-Turbo) │
                 │   Peso: 0.8     │
                 └─────────────────┘
+
+┌─────────────────┐    JSON Config    ┌─────────────────┐    REST API    ┌─────────────────┐
+│   INTENTS.JSON  │◄─────────────────│  INTENT CONFIG  │───────────────▶│ INTENT CONFIG   │
+│ (12 Intents)    │                  │    MANAGER      │                │     API         │
+│ (89 Examples)   │                  │ (Hot Reload)    │                │ (15 endpoints)  │
+└─────────────────┘                  └─────────────────┘                └─────────────────┘
+                                              │                                │
+                                              ▼                                ▼
+                                     ┌─────────────────┐              ┌─────────────────┐
+                                     │ INTENT INIT     │              │ INTENT HEALTH   │
+                                     │ SERVICE         │              │ (Monitoring)    │
+                                     │ (Auto Setup)    │              └─────────────────┘
+                                     └─────────────────┘
+                                              │
+                                              ▼
+                                     ┌─────────────────┐
+                                     │ INTENT POOL     │
+                                     │ (12 Intents)    │
+                                     │ (7 Domains)     │
+                                     │ (9 MCP Actions) │
+                                     └─────────────────┘
 ```
 
 ### **🎯 OBJETIVO COMPLETO (Futuras Tareas)**
