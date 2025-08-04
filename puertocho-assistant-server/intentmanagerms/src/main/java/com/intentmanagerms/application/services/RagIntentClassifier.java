@@ -43,6 +43,9 @@ public class RagIntentClassifier {
     @Autowired
     private ConfidenceScoringService confidenceScoringService;
 
+    @Autowired
+    private IntelligentFallbackService intelligentFallbackService;
+
     @Value("${rag.classifier.default-max-examples:5}")
     private int defaultMaxExamples;
     
@@ -110,7 +113,8 @@ public class RagIntentClassifier {
             
             if (relevantExamples.isEmpty()) {
                 logger.warn("No se encontraron ejemplos relevantes con similitud >= {}", similarityThreshold);
-                return handleNoRelevantExamples(request, result, startTime);
+                return intelligentFallbackService.applyIntelligentFallback(
+                    request, result, relevantExamples, startTime);
             }
             
             // Paso 4: Construir prompt dinámico usando el servicio especializado
@@ -133,11 +137,12 @@ public class RagIntentClassifier {
             double confidenceScore = confidenceScoringService.calculateConfidenceScore(parsedResult, relevantExamples);
             parsedResult.setConfidenceScore(confidenceScore);
             
-            // Paso 8: Aplicar fallback si es necesario
+            // Paso 8: Aplicar fallback inteligente si es necesario
             if (enableFallback && confidenceScore < confidenceThreshold) {
-                logger.info("Confidence score {} por debajo del umbral {}, aplicando fallback", 
+                logger.info("Confidence score {} por debajo del umbral {}, aplicando fallback inteligente", 
                     confidenceScore, confidenceThreshold);
-                return applyFallback(request, result, startTime);
+                return intelligentFallbackService.applyIntelligentFallback(
+                    request, parsedResult, relevantExamples, startTime);
             }
             
             // Paso 9: Enriquecer resultado con metadata

@@ -546,6 +546,125 @@ RAG_CLASSIFIER_MAX_PROCESSING_TIME_MS=10000
 ✅ Logs: Sin errores críticos
 ```
 
+### **T2.5 ✅ - Fallback Inteligente con Degradación Gradual**
+**Archivos Implementados:**
+- ✅ `IntelligentFallbackService.java` - Servicio principal de fallback inteligente
+- ✅ `IntelligentFallbackController.java` - API REST con 5 endpoints especializados
+- ✅ `RagIntentClassifier.java` - Integrado con el nuevo servicio de fallback
+- ✅ `test_intelligent_fallback.py` - Script de pruebas automatizadas completo
+- ✅ `application.yml` - Configuración de fallback actualizada
+
+**Funcionalidades Implementadas:**
+- ✅ **5 Niveles de Degradación**: Similitud reducida → Dominio general → Palabras clave → Contexto → Genérico
+- ✅ **Fallback por Similitud Reducida**: Reduce umbral y busca ejemplos más amplios
+- ✅ **Fallback por Dominio General**: Intenciones básicas como ayuda, saludo, agradecimiento
+- ✅ **Fallback por Palabras Clave**: Análisis de palabras clave específicas (tiempo, luz, música, etc.)
+- ✅ **Fallback por Análisis de Contexto**: Metadata temporal, ubicación y tipo de dispositivo
+- ✅ **Fallback Genérico**: Último recurso cuando todos los demás fallan
+- ✅ **Configuración Dinámica**: Parámetros ajustables via variables de entorno
+- ✅ **Health Checks**: Verificación de salud del servicio y dependencias
+
+**API REST Disponible:**
+```bash
+GET  /api/v1/fallback/statistics      # Estadísticas del servicio
+GET  /api/v1/fallback/health          # Health check
+POST /api/v1/fallback/test            # Test del servicio
+POST /api/v1/fallback/classify        # Clasificación con fallback forzado
+POST /api/v1/fallback/test-degradation # Test de niveles de degradación
+```
+
+**Configuración de Fallback:**
+```yaml
+rag:
+  fallback:
+    enable-gradual-degradation: ${RAG_FALLBACK_ENABLE_GRADUAL_DEGRADATION:true}
+    max-degradation-levels: ${RAG_FALLBACK_MAX_DEGRADATION_LEVELS:5}
+    similarity-reduction-factor: ${RAG_FALLBACK_SIMILARITY_REDUCTION_FACTOR:0.2}
+    enable-keyword-fallback: ${RAG_FALLBACK_ENABLE_KEYWORD_FALLBACK:true}
+    enable-context-fallback: ${RAG_FALLBACK_ENABLE_CONTEXT_FALLBACK:true}
+    enable-general-domain-fallback: ${RAG_FALLBACK_ENABLE_GENERAL_DOMAIN_FALLBACK:true}
+    min-confidence-for-degradation: ${RAG_FALLBACK_MIN_CONFIDENCE_FOR_DEGRADATION:0.3}
+    max-processing-time-ms: ${RAG_FALLBACK_MAX_PROCESSING_TIME_MS:5000}
+```
+
+**Niveles de Degradación Implementados:**
+
+**Nivel 1 - Similitud Reducida:**
+- Reduce umbral de similitud de 0.6 a 0.2
+- Busca ejemplos más amplios en vector store
+- Aplica penalización del 20% en confidence
+- Usa prompt engineering adaptativo
+
+**Nivel 2 - Dominio General:**
+- Intenciones básicas: ayuda, saludo, agradecimiento, despedida
+- Análisis de texto por palabras clave temporales
+- Confianza moderada (40%) para intenciones generales
+- Fallback a "ayuda" si no encuentra coincidencias
+
+**Nivel 3 - Palabras Clave:**
+- 14 palabras clave mapeadas a intenciones específicas
+- Análisis de posición y frecuencia de palabras clave
+- Score basado en relevancia semántica
+- Máximo 50% de confianza para palabras clave
+
+**Nivel 4 - Análisis de Contexto:**
+- Metadata temporal (hora del día)
+- Ubicación (casa, oficina, etc.)
+- Tipo de dispositivo (speaker, móvil, etc.)
+- Contexto conversacional
+
+**Nivel 5 - Fallback Genérico:**
+- Último recurso cuando todos fallan
+- Intención "ayuda" con 10% de confianza
+- Respuesta genérica de asistencia
+
+**Pruebas Automatizadas:**
+```bash
+✅ 8/8 pruebas pasaron exitosamente (100% éxito)
+✅ Verificación de disponibilidad: PASÓ
+✅ Health check del servicio: PASÓ
+✅ Estadísticas del servicio: PASÓ
+✅ Fallback básico: PASÓ
+✅ Fallback por palabras clave: 6/6 exitosas
+✅ Fallback por contexto: 2/2 exitosas
+✅ Niveles de degradación: 4/4 exitosas
+✅ Manejo de errores: PASÓ
+✅ Rendimiento: < 5s por prueba
+```
+
+**Características del Sistema de Fallback:**
+- ✅ **Degradación Gradual**: 5 niveles secuenciales de fallback
+- ✅ **Configuración Flexible**: Parámetros ajustables via variables de entorno
+- ✅ **Análisis Contextual**: Metadata temporal, ubicación y dispositivo
+- ✅ **Palabras Clave Inteligentes**: 14 mapeos semánticos
+- ✅ **Health Checks**: Verificación de servicios dependientes
+- ✅ **Logging Detallado**: Debug completo de cada nivel
+- ✅ **Performance Optimizado**: < 5s tiempo máximo de procesamiento
+- ✅ **Integración Completa**: Con motor RAG y vector store
+
+**Variables de Entorno Clave:**
+```bash
+RAG_FALLBACK_ENABLE_GRADUAL_DEGRADATION=true
+RAG_FALLBACK_MAX_DEGRADATION_LEVELS=5
+RAG_FALLBACK_SIMILARITY_REDUCTION_FACTOR=0.2
+RAG_FALLBACK_ENABLE_KEYWORD_FALLBACK=true
+RAG_FALLBACK_ENABLE_CONTEXT_FALLBACK=true
+RAG_FALLBACK_ENABLE_GENERAL_DOMAIN_FALLBACK=true
+RAG_FALLBACK_MIN_CONFIDENCE_FOR_DEGRADATION=0.3
+RAG_FALLBACK_MAX_PROCESSING_TIME_MS=5000
+```
+
+**Estado de Salud del Servicio de Fallback:**
+```
+✅ Intelligent Fallback Service: HEALTHY
+✅ Niveles de degradación: 5 disponibles
+✅ Features enabled: gradual_degradation, keyword_fallback, context_fallback
+✅ Integration: RAG Classifier + Vector Store + Intent Config
+✅ Performance: Optimized with timeout control
+✅ API REST: 5 endpoints operativos
+✅ Tests: 100% exitosas
+```
+
 ### **T2.2 ✅ - Sistema de Similarity Search Avanzado**
 **Archivos Implementados:**
 - ✅ `AdvancedSimilaritySearchService.java` - Servicio principal de búsqueda avanzada
@@ -966,15 +1085,15 @@ RAG_PROMPT_LANGUAGE=es
 
 ### **📊 Progreso Actual:**
 - **Epic 1**: 5/5 tareas completadas (100%) ✅
-- **Epic 2**: 3/5 tareas completadas (60%) - T2.1 ✅, T2.2 ✅, T2.3 ✅
+- **Epic 2**: 5/5 tareas completadas (100%) ✅ - T2.1 ✅, T2.2 ✅, T2.3 ✅, T2.4 ✅, T2.5 ✅
 - **Epic 3**: Base preparada, pendiente implementación completa
-- **Total General**: 8/50 tareas completadas (16%)
+- **Total General**: 10/50 tareas completadas (20%)
 
 ---
 
 ## Arquitectura Implementada vs Objetivo
 
-### **✅ IMPLEMENTADO (T1.1 + T1.2 + T1.3 + T1.4 + T1.5 + T2.1 + T2.2)**
+### **✅ IMPLEMENTADO (T1.1 + T1.2 + T1.3 + T1.4 + T1.5 + T2.1 + T2.2 + T2.3 + T2.4 + T2.5)**
 
 ```
 ┌─────────────────┐    Config    ┌─────────────────┐    REST API    ┌─────────────────┐

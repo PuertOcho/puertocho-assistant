@@ -78,6 +78,15 @@ rag:
     temperature: ${RAG_PROMPT_TEMPERATURE:0.3}
     max-tokens: ${RAG_PROMPT_MAX_TOKENS:2048}
     language: ${RAG_PROMPT_LANGUAGE:es}
+  fallback:
+    enable-gradual-degradation: ${RAG_FALLBACK_ENABLE_GRADUAL_DEGRADATION:true}
+    max-degradation-levels: ${RAG_FALLBACK_MAX_DEGRADATION_LEVELS:5}
+    similarity-reduction-factor: ${RAG_FALLBACK_SIMILARITY_REDUCTION_FACTOR:0.2}
+    enable-keyword-fallback: ${RAG_FALLBACK_ENABLE_KEYWORD_FALLBACK:true}
+    enable-context-fallback: ${RAG_FALLBACK_ENABLE_CONTEXT_FALLBACK:true}
+    enable-general-domain-fallback: ${RAG_FALLBACK_ENABLE_GENERAL_DOMAIN_FALLBACK:true}
+    min-confidence-for-degradation: ${RAG_FALLBACK_MIN_CONFIDENCE_FOR_DEGRADATION:0.3}
+    max-processing-time-ms: ${RAG_FALLBACK_MAX_PROCESSING_TIME_MS:5000}
 
 # Configuración de LLMs
 llm:
