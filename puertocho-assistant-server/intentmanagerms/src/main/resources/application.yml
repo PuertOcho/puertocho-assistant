@@ -43,6 +43,15 @@ rag:
     enable-fallback: ${RAG_ENABLE_FALLBACK:true}
     fallback-confidence-threshold: ${RAG_FALLBACK_CONFIDENCE_THRESHOLD:0.5}
     max-processing-time-ms: ${RAG_MAX_PROCESSING_TIME_MS:10000}
+  similarity:
+    search-algorithm: ${RAG_SIMILARITY_SEARCH_ALGORITHM:hybrid}
+    diversity-threshold: ${RAG_SIMILARITY_DIVERSITY_THRESHOLD:0.3}
+    intent-weight: ${RAG_SIMILARITY_INTENT_WEIGHT:0.7}
+    content-weight: ${RAG_SIMILARITY_CONTENT_WEIGHT:0.3}
+    enable-diversity-filtering: ${RAG_SIMILARITY_ENABLE_DIVERSITY_FILTERING:true}
+    enable-intent-clustering: ${RAG_SIMILARITY_ENABLE_INTENT_CLUSTERING:true}
+    max-cluster-size: ${RAG_SIMILARITY_MAX_CLUSTER_SIZE:3}
+    enable-semantic-boosting: ${RAG_SIMILARITY_ENABLE_SEMANTIC_BOOSTING:true}
 
 # Configuración de LLMs
 llm:

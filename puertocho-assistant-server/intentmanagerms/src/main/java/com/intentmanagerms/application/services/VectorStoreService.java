@@ -30,6 +30,9 @@ public class VectorStoreService {
     @Autowired
     private LlmConfigurationService llmConfigurationService;
     
+    @Autowired
+    private AdvancedSimilaritySearchService advancedSimilaritySearchService;
+    
     // Configuración desde application.yml
     @Value("${vector-store.type:in-memory}")
     private String vectorStoreType;
@@ -192,33 +195,31 @@ public class VectorStoreService {
     }
     
     /**
-     * Busca en el almacenamiento en memoria.
+     * Busca en el almacenamiento en memoria usando búsqueda avanzada.
      */
     private SearchResult searchInMemory(String query, List<Float> queryEmbedding, int limit) {
-        List<EmbeddingDocument> results = new ArrayList<>();
+        // Convertir embeddings a documentos para búsqueda avanzada
+        List<EmbeddingDocument> allDocuments = new ArrayList<>();
         
         for (Map.Entry<String, List<Float>> entry : inMemoryEmbeddings.entrySet()) {
             String docId = entry.getKey();
             List<Float> docEmbedding = entry.getValue();
+            EmbeddingDocument doc = inMemoryStore.get(docId);
             
-            if (docEmbedding != null && docEmbedding.size() == queryEmbedding.size()) {
-                double similarity = calculateCosineSimilarity(queryEmbedding, docEmbedding);
-                
-                if (similarity >= similarityThreshold) {
-                    EmbeddingDocument doc = inMemoryStore.get(docId);
-                    if (doc != null) {
-                        doc.setSimilarity(similarity);
-                        results.add(doc);
-                    }
-                }
+            if (doc != null && docEmbedding != null && docEmbedding.size() == queryEmbedding.size()) {
+                doc.setEmbedding(docEmbedding);
+                allDocuments.add(doc);
             }
         }
         
-        // Ordenar por similitud descendente y limitar resultados
-        results.sort((a, b) -> Double.compare(b.getSimilarity(), a.getSimilarity()));
-        results = results.stream().limit(limit).collect(Collectors.toList());
+        // Usar búsqueda avanzada si hay documentos disponibles
+        if (!allDocuments.isEmpty()) {
+            return advancedSimilaritySearchService.advancedSearch(
+                    query, queryEmbedding, allDocuments, limit, similarityThreshold);
+        }
         
-        return new SearchResult(results, query);
+        // Fallback a búsqueda básica si no hay documentos
+        return new SearchResult(new ArrayList<>(), query);
     }
     
     /**

@@ -316,7 +316,7 @@ MOE_LLM_C_MODEL=gpt-3.5-turbo
 | ID | Descripción | Dependencias | Estado |
 |----|-------------|--------------|--------|
 | T2.1 | Crear `RagIntentClassifier` con embeddings vectoriales para few-shot learning | T1.3, T1.4 | ✅ |
-| T2.2 | Implementar sistema de similarity search para ejemplos de intenciones | T2.1 | ⏳ |
+| T2.2 | Implementar sistema de similarity search para ejemplos de intenciones | T2.1 | ✅ |
 | T2.3 | Desarrollar prompt engineering dinámico con contexto RAG | T2.1 | ⏳ |
 | T2.4 | Añadir confidence scoring usando múltiples métricas | T2.2 | ⏳ |
 | T2.5 | Crear fallback inteligente con degradación gradual | T2.4 | ⏳ |
@@ -443,6 +443,111 @@ RAG_CLASSIFIER_MAX_PROCESSING_TIME_MS=10000
 ✅ API REST: 7 endpoints operativos
 ✅ Pruebas: 100% exitosas
 ✅ Logs: Sin errores críticos
+```
+
+### **T2.2 ✅ - Sistema de Similarity Search Avanzado**
+**Archivos Implementados:**
+- ✅ `AdvancedSimilaritySearchService.java` - Servicio principal de búsqueda avanzada
+- ✅ `AdvancedSimilaritySearchController.java` - API REST con 4 endpoints
+- ✅ `VectorStoreService.java` - Integración con el nuevo servicio
+- ✅ `application.yml` - Configuración de similarity search actualizada
+
+**Funcionalidades Implementadas:**
+- ✅ **Múltiples algoritmos**: Cosine, Euclidean, Manhattan, Hybrid
+- ✅ **Diversity filtering**: Evita resultados muy similares (umbral: 0.3)
+- ✅ **Intent clustering**: Agrupación por intención para diversificar
+- ✅ **Semantic boosting**: Refuerzo basado en palabras clave
+- ✅ **Performance cache**: Cache de embeddings y similitudes
+- ✅ **Quality filters**: Filtros de calidad por umbral de similitud
+- ✅ **Hybrid similarity**: Combinación embedding (70%) + contenido (30%)
+
+**API REST Disponible:**
+```bash
+GET  /api/v1/similarity-search/statistics    # Estadísticas del servicio
+GET  /api/v1/similarity-search/health        # Health check
+GET  /api/v1/similarity-search/info          # Información detallada
+POST /api/v1/similarity-search/test          # Test del servicio
+```
+
+**Configuración de Similarity Search:**
+```yaml
+rag:
+  similarity:
+    search-algorithm: hybrid                    # Algoritmo híbrido por defecto
+    diversity-threshold: 0.3                    # Umbral de diversidad
+    intent-weight: 0.7                          # Peso para embedding
+    content-weight: 0.3                         # Peso para contenido
+    enable-diversity-filtering: true            # Filtrado de diversidad
+    enable-intent-clustering: true              # Clustering por intención
+    max-cluster-size: 3                         # Tamaño máximo de cluster
+    enable-semantic-boosting: true              # Boosting semántico
+```
+
+**Pruebas Automatizadas:**
+```bash
+✅ 5/5 pruebas pasaron exitosamente (100% éxito)
+✅ Verificación de disponibilidad: PASÓ
+✅ Estadísticas del servicio: PASÓ
+✅ Información del servicio: PASÓ
+✅ Test del servicio: PASÓ
+✅ Integración con Motor RAG: 5/5 exitosas
+```
+
+**Características del Sistema Avanzado:**
+- ✅ **Algoritmos múltiples**: 4 algoritmos de similitud disponibles
+- ✅ **Filtrado inteligente**: Diversity filtering y intent clustering
+- ✅ **Optimización de rendimiento**: Cache y algoritmos optimizados
+- ✅ **Integración completa**: Con motor RAG y vector store
+- ✅ **Configuración dinámica**: Parámetros ajustables via variables de entorno
+- ✅ **Métricas detalladas**: Estadísticas completas del servicio
+
+**Algoritmos Implementados:**
+```java
+// 1. Cosine Similarity (optimizada)
+private double calculateCosineSimilarity(List<Float> vector1, List<Float> vector2)
+
+// 2. Euclidean Similarity (convertida a 0-1)
+private double calculateEuclideanSimilarity(List<Float> vector1, List<Float> vector2)
+
+// 3. Manhattan Similarity (convertida a 0-1)
+private double calculateManhattanSimilarity(List<Float> vector1, List<Float> vector2)
+
+// 4. Hybrid Similarity (embedding + contenido)
+private double calculateHybridSimilarity(List<Float> queryEmbedding, List<Float> docEmbedding, EmbeddingDocument doc)
+```
+
+**Flujo de Búsqueda Avanzada:**
+```
+1. Calcular similitudes → Usar algoritmo seleccionado
+2. Aplicar filtros de calidad → Por umbral de similitud
+3. Aplicar clustering por intención → Diversificar resultados
+4. Aplicar filtrado de diversidad → Evitar similitud excesiva
+5. Aplicar boosting semántico → Refuerzo por palabras clave
+6. Ordenar y limitar → Por score final
+7. Convertir a resultados → EmbeddingDocument listos
+```
+
+**Variables de Entorno Clave:**
+```bash
+RAG_SIMILARITY_SEARCH_ALGORITHM=hybrid
+RAG_SIMILARITY_DIVERSITY_THRESHOLD=0.3
+RAG_SIMILARITY_INTENT_WEIGHT=0.7
+RAG_SIMILARITY_CONTENT_WEIGHT=0.3
+RAG_SIMILARITY_ENABLE_DIVERSITY_FILTERING=true
+RAG_SIMILARITY_ENABLE_INTENT_CLUSTERING=true
+RAG_SIMILARITY_MAX_CLUSTER_SIZE=3
+RAG_SIMILARITY_ENABLE_SEMANTIC_BOOSTING=true
+```
+
+**Estado de Salud del Servicio Avanzado:**
+```
+✅ Advanced Similarity Search Service: HEALTHY
+✅ Algorithm: hybrid
+✅ Features enabled: diversity_filtering, intent_clustering, semantic_boosting
+✅ Integration: Vector Store + RAG Classifier
+✅ Performance: Optimized with caching
+✅ API REST: 4 endpoints operativos
+✅ Tests: 100% exitosas
 ```
 
 **Descripción del Epic**: Implementar el motor de Retrieval Augmented Generation (RAG) que reemplaza completamente el sistema RASA/DU. Utiliza embeddings vectoriales para realizar few-shot learning con ejemplos de intenciones almacenados dinámicamente. El sistema busca ejemplos similares, construye prompts contextuales y classifica intenciones sin necesidad de entrenamiento tradicional.
@@ -587,8 +692,8 @@ RAG_CLASSIFIER_MAX_PROCESSING_TIME_MS=10000
 
 ### ✅ **Fase 1: Fundamentos (COMPLETADA)**
 - ✅ **Epic 1**: Arquitectura Base (T1.1, T1.2, T1.3, T1.4, T1.5 completados)
-- ✅ **Epic 2**: Motor RAG básico (T2.1 completado)
-- ⏳ **Epic 2**: Mejoras RAG (T2.2, T2.3, T2.4, T2.5)
+- ✅ **Epic 2**: Motor RAG básico (T2.1, T2.2 completados)
+- ⏳ **Epic 2**: Mejoras RAG (T2.3, T2.4, T2.5)
 - ⏳ **Epic 5**: Integración Audio (básica)
 
 ### 🔄 **Fase 2: Inteligencia (EN PROGRESO)**
@@ -607,15 +712,15 @@ RAG_CLASSIFIER_MAX_PROCESSING_TIME_MS=10000
 
 ### **📊 Progreso Actual:**
 - **Epic 1**: 5/5 tareas completadas (100%) ✅
-- **Epic 2**: 1/5 tareas completadas (20%) - T2.1 ✅
+- **Epic 2**: 2/5 tareas completadas (40%) - T2.1 ✅, T2.2 ✅
 - **Epic 3**: Base preparada, pendiente implementación completa
-- **Total General**: 6/50 tareas completadas (12%)
+- **Total General**: 7/50 tareas completadas (14%)
 
 ---
 
 ## Arquitectura Implementada vs Objetivo
 
-### **✅ IMPLEMENTADO (T1.1 + T1.2 + T1.3 + T1.4 + T1.5 + T2.1)**
+### **✅ IMPLEMENTADO (T1.1 + T1.2 + T1.3 + T1.4 + T1.5 + T2.1 + T2.2)**
 
 ```
 ┌─────────────────┐    Config    ┌─────────────────┐    REST API    ┌─────────────────┐
