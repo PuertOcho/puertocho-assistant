@@ -101,6 +101,18 @@ llm:
 # Configuración MoE
 moe:
   enabled: ${MOE_ENABLED:true}
+  timeout-per-vote: ${MOE_TIMEOUT_PER_VOTE:30}
+  parallel-voting: ${MOE_PARALLEL_VOTING:true}
+  consensus-threshold: ${MOE_CONSENSUS_THRESHOLD:0.6}
+  max-debate-rounds: ${MOE_MAX_DEBATE_ROUNDS:1}
+  configuration:
+    file: ${MOE_CONFIGURATION_FILE:classpath:config/moe_voting.json}
+    hot-reload:
+      enabled: ${MOE_CONFIGURATION_HOT_RELOAD_ENABLED:true}
+      interval: ${MOE_CONFIGURATION_HOT_RELOAD_INTERVAL:30}
+    force-initial-load: true
+    retry-on-failure: true
+    max-retry-attempts: 3
   llm-a:
     model: ${MOE_LLM_A_MODEL:gpt-4}
   llm-b:
