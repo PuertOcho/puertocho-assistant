@@ -43,6 +43,22 @@ rag:
     enable-fallback: ${RAG_ENABLE_FALLBACK:true}
     fallback-confidence-threshold: ${RAG_FALLBACK_CONFIDENCE_THRESHOLD:0.5}
     max-processing-time-ms: ${RAG_MAX_PROCESSING_TIME_MS:10000}
+  confidence:
+    weights:
+      llm: ${RAG_CONFIDENCE_WEIGHT_LLM:0.25}
+      similarity: ${RAG_CONFIDENCE_WEIGHT_SIMILARITY:0.20}
+      consistency: ${RAG_CONFIDENCE_WEIGHT_CONSISTENCY:0.15}
+      example-count: ${RAG_CONFIDENCE_WEIGHT_EXAMPLE_COUNT:0.10}
+      semantic-diversity: ${RAG_CONFIDENCE_WEIGHT_SEMANTIC_DIVERSITY:0.10}
+      temporal: ${RAG_CONFIDENCE_WEIGHT_TEMPORAL:0.05}
+      embedding-quality: ${RAG_CONFIDENCE_WEIGHT_EMBEDDING_QUALITY:0.05}
+      entropy: ${RAG_CONFIDENCE_WEIGHT_ENTROPY:0.05}
+      contextual: ${RAG_CONFIDENCE_WEIGHT_CONTEXTUAL:0.03}
+      prompt-robustness: ${RAG_CONFIDENCE_WEIGHT_PROMPT_ROBUSTNESS:0.02}
+    thresholds:
+      optimal-processing-time-ms: ${RAG_CONFIDENCE_OPTIMAL_PROCESSING_TIME_MS:500}
+      max-processing-time-ms: ${RAG_CONFIDENCE_MAX_PROCESSING_TIME_MS:2000}
+      min-examples: ${RAG_CONFIDENCE_MIN_EXAMPLES:2}
   similarity:
     search-algorithm: ${RAG_SIMILARITY_SEARCH_ALGORITHM:hybrid}
     diversity-threshold: ${RAG_SIMILARITY_DIVERSITY_THRESHOLD:0.3}

@@ -40,6 +40,9 @@ public class RagIntentClassifier {
     @Autowired
     private DynamicPromptEngineeringService promptEngineeringService;
 
+    @Autowired
+    private ConfidenceScoringService confidenceScoringService;
+
     @Value("${rag.classifier.default-max-examples:5}")
     private int defaultMaxExamples;
     
@@ -126,8 +129,8 @@ public class RagIntentClassifier {
             // Paso 6: Parsear respuesta del LLM
             IntentClassificationResult parsedResult = parseLlmResponse(llmResponse, relevantExamples);
             
-            // Paso 7: Calcular confidence score
-            double confidenceScore = calculateConfidenceScore(parsedResult, relevantExamples);
+            // Paso 7: Calcular confidence score usando el servicio especializado
+            double confidenceScore = confidenceScoringService.calculateConfidenceScore(parsedResult, relevantExamples);
             parsedResult.setConfidenceScore(confidenceScore);
             
             // Paso 8: Aplicar fallback si es necesario
@@ -287,53 +290,6 @@ public class RagIntentClassifier {
         }
         
         return "";
-    }
-    
-    /**
-     * Calcula confidence score usando múltiples métricas
-     */
-    private double calculateConfidenceScore(IntentClassificationResult result, List<EmbeddingDocument> examples) {
-        if (examples.isEmpty()) {
-            return 0.0;
-        }
-        
-        // Métrica 1: Confidence del LLM (40%)
-        double llmConfidence = result.getConfidenceScore() != null ? result.getConfidenceScore() : 0.0;
-        
-        // Métrica 2: Similitud promedio de ejemplos (30%)
-        double avgSimilarity = examples.stream()
-                .mapToDouble(EmbeddingDocument::getSimilarity)
-                .average()
-                .orElse(0.0);
-        
-        // Métrica 3: Consistencia de intenciones en ejemplos (20%)
-        double consistency = calculateIntentConsistency(examples, result.getIntentId());
-        
-        // Métrica 4: Cantidad de ejemplos relevantes (10%)
-        double exampleCount = Math.min(examples.size() / 5.0, 1.0); // Normalizado a 0-1
-        
-        // Cálculo ponderado
-        double finalConfidence = (llmConfidence * 0.4) + 
-                                (avgSimilarity * 0.3) + 
-                                (consistency * 0.2) + 
-                                (exampleCount * 0.1);
-        
-        return Math.min(finalConfidence, 1.0);
-    }
-    
-    /**
-     * Calcula consistencia de intenciones en ejemplos
-     */
-    private double calculateIntentConsistency(List<EmbeddingDocument> examples, String targetIntent) {
-        if (examples.isEmpty()) {
-            return 0.0;
-        }
-        
-        long matchingIntents = examples.stream()
-                .filter(doc -> targetIntent.equals(doc.getIntent()))
-                .count();
-        
-        return (double) matchingIntents / examples.size();
     }
     
     /**

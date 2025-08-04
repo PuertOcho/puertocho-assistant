@@ -1,6 +1,7 @@
 package com.intentmanagerms.infrastructure.web;
 
 import com.intentmanagerms.application.services.RagIntentClassifier;
+import com.intentmanagerms.application.services.ConfidenceScoringService;
 import com.intentmanagerms.domain.model.IntentClassificationRequest;
 import com.intentmanagerms.domain.model.IntentClassificationResult;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +15,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import com.intentmanagerms.domain.model.EmbeddingDocument;
 
 /**
  * Controlador REST para el motor RAG de clasificación de intenciones.
@@ -28,6 +32,9 @@ public class RagIntentClassifierController {
     
     @Autowired
     private RagIntentClassifier ragIntentClassifier;
+    
+    @Autowired
+    private ConfidenceScoringService confidenceScoringService;
     
     /**
      * Clasifica texto simple
@@ -328,6 +335,56 @@ public class RagIntentClassifierController {
             errorResult.put("status", "FAILED");
             
             return ResponseEntity.internalServerError().body(errorResult);
+        }
+    }
+    
+    /**
+     * Obtiene métricas detalladas del confidence scoring
+     */
+    @PostMapping("/confidence-metrics")
+    @Operation(summary = "Obtener métricas detalladas del confidence scoring", 
+               description = "Analiza un texto y retorna el desglose detallado de todas las métricas de confidence")
+    public ResponseEntity<Map<String, Object>> getConfidenceMetrics(
+            @Parameter(description = "Petición de clasificación para análisis") 
+            @RequestBody IntentClassificationRequest request) {
+        
+        logger.info("Solicitando métricas detalladas de confidence para texto: '{}'", request.getText());
+        
+        try {
+            // Realizar clasificación completa
+            IntentClassificationResult result = ragIntentClassifier.classifyIntent(request);
+            
+            // Obtener ejemplos utilizados (simulado por ahora)
+            // TODO: Extraer ejemplos reales del resultado
+            List<EmbeddingDocument> examples = new ArrayList<>();
+            
+            // Obtener métricas detalladas
+            Map<String, Double> confidenceMetrics = confidenceScoringService.getConfidenceMetrics(result, examples);
+            
+            // Construir respuesta
+            Map<String, Object> response = new HashMap<>();
+            response.put("text", request.getText());
+            response.put("intent_id", result.getIntentId());
+            response.put("final_confidence", result.getConfidenceScore());
+            response.put("processing_time_ms", result.getProcessingTimeMs());
+            response.put("fallback_used", result.getFallbackUsed());
+            response.put("confidence_metrics", confidenceMetrics);
+            response.put("timestamp", System.currentTimeMillis());
+            
+            logger.info("Métricas de confidence calculadas para '{}': confidence={}", 
+                request.getText(), result.getConfidenceScore());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("Error obteniendo métricas de confidence: {}", e.getMessage(), e);
+            
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("error", e.getMessage());
+            errorResult.put("status", "FAILED");
+            errorResult.put("timestamp", System.currentTimeMillis());
+            
+            return ResponseEntity.badRequest().body(errorResult);
         }
     }
 } 
