@@ -122,6 +122,15 @@ moe:
     model: ${MOE_LLM_B_MODEL:claude-3-sonnet-20240229}
   llm-c:
     model: ${MOE_LLM_C_MODEL:gpt-3.5-turbo}
+  consensus:
+    algorithm: ${MOE_CONSENSUS_ALGORITHM:weighted-majority}
+    confidence-threshold: ${MOE_CONSENSUS_CONFIDENCE_THRESHOLD:0.6}
+    minimum-votes: ${MOE_CONSENSUS_MINIMUM_VOTES:2}
+    enable-weighted-scoring: ${MOE_CONSENSUS_ENABLE_WEIGHTED_SCORING:true}
+    enable-confidence-boosting: ${MOE_CONSENSUS_ENABLE_CONFIDENCE_BOOSTING:true}
+    confidence-boost-factor: ${MOE_CONSENSUS_CONFIDENCE_BOOST_FACTOR:0.1}
+    enable-entity-merging: ${MOE_CONSENSUS_ENABLE_ENTITY_MERGING:true}
+    enable-subtask-consolidation: ${MOE_CONSENSUS_ENABLE_SUBTASK_CONSOLIDATION:true}
 
 # Configuración de Vector Store
 vector-store:

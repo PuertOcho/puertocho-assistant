@@ -41,6 +41,9 @@ public class LlmVotingService {
     @Autowired
     private ObjectMapper objectMapper;
     
+    @Autowired
+    private ConsensusEngine consensusEngine;
+    
     // Configuración desde application.yml
     @Value("${moe.enabled:true}")
     private boolean moeEnabled;
@@ -489,9 +492,33 @@ public class LlmVotingService {
     }
     
     /**
-     * Calcula el consenso basado en los votos recibidos.
+     * Calcula el consenso usando el ConsensusEngine avanzado.
+     * T3.3: Integración con ConsensusEngine para procesar votos y llegar a decisión final
      */
     private VotingConsensus calculateConsensus(List<LlmVote> votes, VotingRound round) {
+        logger.info("Usando ConsensusEngine para procesar {} votos en ronda {}", votes.size(), round.getRoundId());
+        
+        try {
+            // Delegar el procesamiento al ConsensusEngine
+            VotingConsensus consensus = consensusEngine.processConsensus(votes, round);
+            
+            logger.info("Consenso procesado por ConsensusEngine: {} (confianza: {})", 
+                       consensus.getFinalIntent(), consensus.getConsensusConfidence());
+            
+            return consensus;
+            
+        } catch (Exception e) {
+            logger.error("Error en ConsensusEngine, usando fallback: {}", e.getMessage(), e);
+            
+            // Fallback a lógica simple si el ConsensusEngine falla
+            return createSimpleConsensus(votes, round);
+        }
+    }
+    
+    /**
+     * Fallback simple para cuando el ConsensusEngine falla.
+     */
+    private VotingConsensus createSimpleConsensus(List<LlmVote> votes, VotingRound round) {
         List<LlmVote> validVotes = votes.stream()
             .filter(LlmVote::isValid)
             .collect(Collectors.toList());
@@ -500,26 +527,20 @@ public class LlmVotingService {
             return createFailedConsensus(votes.size());
         }
         
-        // Agrupar votos por intención
+        // Lógica simple de consenso como fallback
         Map<String, List<LlmVote>> votesByIntent = validVotes.stream()
             .collect(Collectors.groupingBy(LlmVote::getIntent));
         
-        // Encontrar la intención más votada
         String mostVotedIntent = votesByIntent.entrySet().stream()
             .max(Comparator.comparing(entry -> entry.getValue().size()))
             .map(Map.Entry::getKey)
             .orElse("ayuda");
         
-        // Calcular confianza promedio ponderada
         double weightedConfidence = validVotes.stream()
             .mapToDouble(LlmVote::getWeightedScore)
             .average()
             .orElse(0.0);
         
-        // Determinar nivel de acuerdo
-        VotingConsensus.AgreementLevel agreementLevel = determineAgreementLevel(votesByIntent, validVotes.size());
-        
-        // Crear consenso
         VotingConsensus consensus = new VotingConsensus(
             generateConsensusId(round.getRoundId()),
             mostVotedIntent,
@@ -528,17 +549,9 @@ public class LlmVotingService {
             votes.size()
         );
         
-        consensus.setAgreementLevel(agreementLevel);
-        consensus.setConsensusMethod("weighted_majority");
-        consensus.setReasoning("Consenso calculado basado en votos ponderados");
-        
-        // Combinar entidades de todos los votos válidos
-        Map<String, Object> combinedEntities = combineEntities(validVotes);
-        consensus.setFinalEntities(combinedEntities);
-        
-        // Combinar subtareas
-        List<Map<String, Object>> combinedSubtasks = combineSubtasks(validVotes);
-        consensus.setFinalSubtasks(combinedSubtasks);
+        consensus.setAgreementLevel(determineAgreementLevel(votesByIntent, validVotes.size()));
+        consensus.setConsensusMethod("fallback_simple");
+        consensus.setReasoning("Consenso calculado usando fallback simple debido a error en ConsensusEngine");
         
         return consensus;
     }
