@@ -149,6 +149,7 @@ public class LlmVotingController {
     
     /**
      * Obtiene estadísticas del sistema de votación.
+     * T3.4: Incluye información detallada sobre la configuración MoE.
      */
     @GetMapping("/statistics")
     public ResponseEntity<Map<String, Object>> getVotingStatistics() {
@@ -156,6 +157,26 @@ public class LlmVotingController {
             Map<String, Object> stats = llmVotingService.getVotingStatistics();
             stats.put("success", true);
             stats.put("timestamp", System.currentTimeMillis());
+            
+            // T3.4: Añadir información específica sobre configuración MoE
+            var config = votingConfigurationService.getCurrentConfiguration();
+            if (config != null && config.getVotingSystem() != null) {
+                stats.put("moe_enabled", config.getVotingSystem().isEnabled());
+                stats.put("moe_configured", true);
+                stats.put("moe_participants_count", config.getVotingSystem().getLlmParticipants().size());
+                stats.put("moe_max_debate_rounds", config.getVotingSystem().getMaxDebateRounds());
+                stats.put("moe_parallel_voting", config.getVotingSystem().isParallelVoting());
+                stats.put("moe_consensus_threshold", config.getVotingSystem().getConsensusThreshold());
+                stats.put("moe_timeout_per_vote", config.getVotingSystem().getTimeoutPerVote());
+            } else {
+                stats.put("moe_enabled", false);
+                stats.put("moe_configured", false);
+                stats.put("moe_participants_count", 0);
+                stats.put("moe_max_debate_rounds", 0);
+                stats.put("moe_parallel_voting", false);
+                stats.put("moe_consensus_threshold", 0.0);
+                stats.put("moe_timeout_per_vote", 0);
+            }
             
             return ResponseEntity.ok(stats);
             
@@ -270,6 +291,50 @@ public class LlmVotingController {
             logger.error("Error obteniendo información de configuración: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError()
                 .body(createErrorResponse("Error obteniendo información: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Obtiene el estado de habilitación/deshabilitación del sistema MoE.
+     * T3.4: Endpoint específico para verificar configuración MoE_ENABLED.
+     */
+    @GetMapping("/configuration/moe-status")
+    public ResponseEntity<Map<String, Object>> getMoEStatus() {
+        try {
+            var config = votingConfigurationService.getCurrentConfiguration();
+            
+            Map<String, Object> status = new HashMap<>();
+            status.put("success", true);
+            status.put("timestamp", System.currentTimeMillis());
+            
+            if (config != null && config.getVotingSystem() != null) {
+                status.put("moe_enabled", config.getVotingSystem().isEnabled());
+                status.put("voting_system_configured", true);
+                status.put("participants_count", config.getVotingSystem().getLlmParticipants().size());
+                status.put("max_debate_rounds", config.getVotingSystem().getMaxDebateRounds());
+                status.put("parallel_voting", config.getVotingSystem().isParallelVoting());
+                status.put("consensus_threshold", config.getVotingSystem().getConsensusThreshold());
+                status.put("timeout_per_vote", config.getVotingSystem().getTimeoutPerVote());
+            } else {
+                status.put("moe_enabled", false);
+                status.put("voting_system_configured", false);
+                status.put("participants_count", 0);
+                status.put("max_debate_rounds", 0);
+                status.put("parallel_voting", false);
+                status.put("consensus_threshold", 0.0);
+                status.put("timeout_per_vote", 0);
+            }
+            
+            // Información adicional sobre el estado del servicio
+            status.put("service_healthy", llmVotingService.isHealthy());
+            status.put("configuration_loaded", config != null);
+            
+            return ResponseEntity.ok(status);
+            
+        } catch (Exception e) {
+            logger.error("Error obteniendo estado MoE: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                .body(createErrorResponse("Error obteniendo estado MoE: " + e.getMessage()));
         }
     }
     
