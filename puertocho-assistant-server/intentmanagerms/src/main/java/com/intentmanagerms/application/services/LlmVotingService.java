@@ -199,6 +199,18 @@ public class LlmVotingService {
         round.setVotes(allVotes);
         round.setConsensus(currentConsensus);
         
+        // T3.5: Verificar si el consenso falló y activar fallback automáticamente
+        if (currentConsensus.getAgreementLevel() == VotingConsensus.AgreementLevel.FAILED || 
+            currentConsensus.getConsensusConfidence() < consensusThreshold ||
+            "unknown".equals(currentConsensus.getFinalIntent())) {
+            
+            logger.warn("Consenso del debate falló para ronda {}, activando fallback a LLM único", round.getRoundId());
+            logger.warn("Consenso: {} (confianza: {}), umbral: {}", 
+                       currentConsensus.getFinalIntent(), currentConsensus.getConsensusConfidence(), consensusThreshold);
+            
+            return executeSingleLlmMode(round);
+        }
+        
         logger.info("Debate completado para ronda {}: {} votos, consenso final: {} (confianza: {})", 
                    round.getRoundId(), allVotes.size(), 
                    currentConsensus.getFinalIntent(), 
@@ -229,6 +241,18 @@ public class LlmVotingService {
         // Calcular consenso
         VotingConsensus consensus = calculateConsensus(votes, round);
         round.setConsensus(consensus);
+        
+        // T3.5: Verificar si el consenso falló y activar fallback automáticamente
+        if (consensus.getAgreementLevel() == VotingConsensus.AgreementLevel.FAILED || 
+            consensus.getConsensusConfidence() < consensusThreshold ||
+            "unknown".equals(consensus.getFinalIntent())) {
+            
+            logger.warn("Consenso falló para ronda {}, activando fallback a LLM único", round.getRoundId());
+            logger.warn("Consenso: {} (confianza: {}), umbral: {}", 
+                       consensus.getFinalIntent(), consensus.getConsensusConfidence(), consensusThreshold);
+            
+            return executeSingleLlmMode(round);
+        }
         
         logger.info("Votación simple completada para ronda {}: {} votos, consenso: {} (confianza: {})", 
                    round.getRoundId(), votes.size(), 
@@ -623,29 +647,49 @@ public class LlmVotingService {
                 throw new RuntimeException("No se encontró LLM primario configurado");
             }
             
+            // Construir prompt para clasificación de intención
+            String prompt = buildSingleLlmPrompt(round);
+            
+            // Ejecutar llamada al LLM
+            String llmResponse = executeLlmCall(primaryLlm.get(), prompt);
+            
+            // Parsear la respuesta del LLM
+            String intent = "ayuda"; // fallback por defecto
+            double confidence = 0.8;
+            
+            try {
+                // Intentar parsear la respuesta del LLM
+                parseSingleLlmResponse(llmResponse, round);
+                intent = round.getVotes().get(0).getIntent();
+                confidence = round.getVotes().get(0).getConfidence();
+            } catch (Exception parseError) {
+                logger.warn("Error parseando respuesta del LLM único, usando fallback: {}", parseError.getMessage());
+            }
+            
             // Crear voto único
             LlmVote singleVote = new LlmVote(
                 generateVoteId(round.getRoundId(), "single"),
                 primaryLlm.get().getId(),
                 primaryLlm.get().getName(),
-                "ayuda",
-                0.8
+                intent,
+                confidence
             );
             singleVote.setLlmRole("LLM Único");
             singleVote.setLlmWeight(1.0);
             singleVote.setStatus(LlmVote.VoteStatus.COMPLETED);
+            singleVote.setReasoning("Respuesta del LLM: " + llmResponse);
             
             // Crear consenso simple
             VotingConsensus consensus = new VotingConsensus(
                 generateConsensusId(round.getRoundId()),
-                "ayuda",
-                0.8,
+                intent,
+                confidence,
                 1,
                 1
             );
             consensus.setAgreementLevel(VotingConsensus.AgreementLevel.UNANIMOUS);
             consensus.setConsensusMethod("single_llm_mode");
-            consensus.setReasoning("Modo LLM único - sin votación");
+            consensus.setReasoning("Modo LLM único - clasificación directa");
             
             round.setVotes(List.of(singleVote));
             round.setConsensus(consensus);
@@ -653,6 +697,7 @@ public class LlmVotingService {
             round.setEndTime(LocalDateTime.now());
             
         } catch (Exception e) {
+            logger.error("Error en modo LLM único para ronda {}: {}", round.getRoundId(), e.getMessage());
             round.setStatus(VotingRound.VotingStatus.FAILED);
             round.setErrorMessage(e.getMessage());
             round.setEndTime(LocalDateTime.now());
@@ -792,5 +837,102 @@ public class LlmVotingService {
             return "Sin historial";
         }
         return String.join(" | ", history);
+    }
+    
+    /**
+     * Construye el prompt para el modo LLM único.
+     */
+    private String buildSingleLlmPrompt(VotingRound round) {
+        StringBuilder prompt = new StringBuilder();
+        
+        prompt.append("Eres un asistente especializado en clasificar la intención del usuario. ");
+        prompt.append("Analiza el mensaje del usuario y responde con la intención más apropiada.\n\n");
+        
+        prompt.append("Mensaje del usuario: ").append(round.getUserMessage()).append("\n\n");
+        
+        if (round.getConversationContext() != null && !round.getConversationContext().isEmpty()) {
+            prompt.append("Contexto de la conversación:\n");
+            prompt.append(formatConversationContext(round.getConversationContext()));
+            prompt.append("\n\n");
+        }
+        
+        if (round.getConversationHistory() != null && !round.getConversationHistory().isEmpty()) {
+            prompt.append("Historial de conversación:\n");
+            prompt.append(formatConversationHistory(round.getConversationHistory()));
+            prompt.append("\n\n");
+        }
+        
+        prompt.append("Intenciones disponibles:\n");
+        prompt.append("- ayuda: Solicitud de ayuda general\n");
+        prompt.append("- tiempo: Consulta sobre el clima\n");
+        prompt.append("- musica: Solicitud de música\n");
+        prompt.append("- luz: Control de iluminación\n");
+        prompt.append("- alarma: Programación de alarmas\n");
+        prompt.append("- noticia: Solicitud de noticias\n");
+        prompt.append("- chiste: Solicitud de chistes\n");
+        prompt.append("- calculadora: Operaciones matemáticas\n");
+        prompt.append("- traductor: Traducción de idiomas\n");
+        prompt.append("- recordatorio: Gestión de recordatorios\n\n");
+        
+        prompt.append("Responde únicamente con el nombre de la intención (ej: 'ayuda', 'tiempo', 'musica'). ");
+        prompt.append("Si no estás seguro, responde 'ayuda'.");
+        
+        return prompt.toString();
+    }
+    
+    /**
+     * Parsea la respuesta del LLM único.
+     */
+    private void parseSingleLlmResponse(String llmResponse, VotingRound round) {
+        if (llmResponse == null || llmResponse.trim().isEmpty()) {
+            throw new RuntimeException("Respuesta del LLM vacía");
+        }
+        
+        // Limpiar la respuesta
+        String cleanResponse = llmResponse.trim().toLowerCase();
+        
+        // Mapear respuestas a intenciones
+        String intent = "ayuda"; // fallback por defecto
+        double confidence = 0.8;
+        
+        if (cleanResponse.contains("tiempo") || cleanResponse.contains("clima") || cleanResponse.contains("weather")) {
+            intent = "tiempo";
+            confidence = 0.9;
+        } else if (cleanResponse.contains("musica") || cleanResponse.contains("música") || cleanResponse.contains("music")) {
+            intent = "musica";
+            confidence = 0.9;
+        } else if (cleanResponse.contains("luz") || cleanResponse.contains("light") || cleanResponse.contains("iluminacion")) {
+            intent = "luz";
+            confidence = 0.9;
+        } else if (cleanResponse.contains("alarma") || cleanResponse.contains("alarm")) {
+            intent = "alarma";
+            confidence = 0.9;
+        } else if (cleanResponse.contains("noticia") || cleanResponse.contains("news")) {
+            intent = "noticia";
+            confidence = 0.9;
+        } else if (cleanResponse.contains("chiste") || cleanResponse.contains("joke")) {
+            intent = "chiste";
+            confidence = 0.9;
+        } else if (cleanResponse.contains("calculadora") || cleanResponse.contains("calculator") || cleanResponse.contains("calcular")) {
+            intent = "calculadora";
+            confidence = 0.9;
+        } else if (cleanResponse.contains("traductor") || cleanResponse.contains("translate") || cleanResponse.contains("traducir")) {
+            intent = "traductor";
+            confidence = 0.9;
+        } else if (cleanResponse.contains("recordatorio") || cleanResponse.contains("reminder")) {
+            intent = "recordatorio";
+            confidence = 0.9;
+        } else if (cleanResponse.contains("ayuda") || cleanResponse.contains("help")) {
+            intent = "ayuda";
+            confidence = 0.8;
+        }
+        
+        // Crear voto temporal para almacenar el resultado
+        LlmVote tempVote = new LlmVote();
+        tempVote.setIntent(intent);
+        tempVote.setConfidence(confidence);
+        tempVote.setReasoning("Respuesta del LLM: " + llmResponse);
+        
+        round.setVotes(List.of(tempVote));
     }
 } 
