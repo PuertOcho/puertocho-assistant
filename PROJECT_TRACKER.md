@@ -97,8 +97,8 @@
 | ID | Descripción | Dependencias | Estado |
 |----|-------------|--------------|--------|
 | T4.1 | Diseñar `ConversationManager` con contexto LLM-powered | T2.1 | ✅ |
-| T4.2 | Implementar slot-filling automático usando LLM para preguntas dinámicas | T4.1 | ⏳ |
-| T4.3 | Crear `EntityExtractor` basado en LLM para extracción contextual | T4.1 | ⏳ |
+| T4.2 | Implementar slot-filling automático usando LLM para preguntas dinámicas | T4.1 | ✅ |
+| T4.3 | Crear `EntityExtractor` basado en LLM para extracción contextual | T4.1 | ✅ |
 | T4.4 | Desarrollar memoria conversacional con Redis para sesiones persistentes | T4.1 | ⏳ |
 | T4.5 | Crear `DynamicSubtaskDecomposer` - LLM analiza petición y identifica múltiples acciones automáticamente | T4.1 | ⏳ |
 | T4.6 | Implementar `TaskOrchestrator` para ejecución secuencial/paralela de subtareas detectadas dinámicamente | T4.5 | ⏳ |
@@ -212,7 +212,8 @@
 - **Epic 1**: 5/5 tareas completadas (100%) ✅
 - **Epic 2**: 5/5 tareas completadas (100%) ✅
 - **Epic 3**: 5/5 tareas completadas (100%) ✅
-- **Total General**: 16/50 tareas completadas (32%)
+- **Epic 4**: 3/8 tareas completadas (37.5%) 🔄
+- **Total General**: 18/50 tareas completadas (36%)
 
 ---
 

@@ -1,5 +1,6 @@
 package com.intentmanagerms.application.services;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.intentmanagerms.domain.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,9 @@ public class ConversationManager {
 
     @Autowired
     private LlmVotingService llmVotingService;
+
+    @Autowired
+    private SlotFillingService slotFillingService;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -389,28 +393,145 @@ public class ConversationManager {
     }
 
     private String generateSystemResponse(ConversationSession session, ConversationTurn turn, IntentClassificationResult result) {
-        // Por ahora, generamos una respuesta simple basada en la intención
-        // En el futuro, esto se integrará con el sistema de generación de respuestas
-        
+        // Verificar confianza de clasificación
         if (result.getConfidenceScore() != null && result.getConfidenceScore() < 0.7) {
             return "No estoy seguro de entender. ¿Podrías reformular tu petición?";
         }
 
-        switch (result.getIntentId()) {
+        try {
+            // Preparar solicitud de slot-filling
+            SlotFillingRequest slotRequest = new SlotFillingRequest(
+                result.getIntentId(), 
+                turn.getUserMessage(), 
+                session.getSessionId()
+            );
+            slotRequest.setCurrentSlots(session.getSlots() != null ? session.getSlots() : new HashMap<>());
+            slotRequest.setConversationContext(buildSlotFillingContext(session));
+            slotRequest.setUserPreferences(getUserPreferences(session));
+
+            // Procesar slot-filling
+            SlotFillingResult slotResult = slotFillingService.processSlotFilling(slotRequest);
+            
+            if (!slotResult.isSuccess()) {
+                logger.warn("Error en slot-filling para intent '{}': {}", result.getIntentId(), slotResult.getErrorMessage());
+                return generateFallbackResponse(result.getIntentId());
+            }
+
+            // Actualizar slots en la sesión
+            if (slotResult.getFilledSlots() != null) {
+                session.getSlots().putAll(slotResult.getFilledSlots());
+            }
+
+            // Verificar si faltan slots
+            if (!slotResult.isSlotsCompleted()) {
+                // Cambiar estado de la sesión a WAITING_SLOTS
+                session.setState(ConversationState.WAITING_SLOTS);
+                
+                // Devolver pregunta generada dinámicamente
+                String question = slotResult.getGeneratedQuestion();
+                if (question != null && !question.trim().isEmpty()) {
+                    return question;
+                } else {
+                    return generateFallbackSlotQuestion(slotResult.getNextSlotToFill());
+                }
+            } else {
+                // Todos los slots están completos, proceder con la acción
+                session.setState(ConversationState.EXECUTING_TASKS);
+                return generateExecutionResponse(result.getIntentId(), slotResult.getFilledSlots());
+            }
+
+        } catch (Exception e) {
+            logger.error("Error en generación de respuesta con slot-filling para intent '{}': {}", 
+                        result.getIntentId(), e.getMessage(), e);
+            return generateFallbackResponse(result.getIntentId());
+        }
+    }
+
+    /**
+     * Construye el contexto para slot-filling desde la sesión conversacional
+     */
+    private Map<String, Object> buildSlotFillingContext(ConversationSession session) {
+        Map<String, Object> context = new HashMap<>();
+        
+        if (session.getContext() != null) {
+            context.put("user_preferences", session.getContext().getUserPreferences());
+            context.put("entity_cache", session.getContext().getEntityCache());
+            context.put("device_context", session.getContext().getDeviceContext());
+            context.put("location_context", session.getContext().getLocationContext());
+            context.put("conversation_metadata", session.getContext().getConversationMetadata());
+        }
+        
+        context.put("session_id", session.getSessionId());
+        context.put("turn_count", session.getTurnCount());
+        context.put("current_intent", session.getCurrentIntent());
+        
+        return context;
+    }
+
+    /**
+     * Obtiene preferencias del usuario desde la sesión
+     */
+    private Map<String, Object> getUserPreferences(ConversationSession session) {
+        if (session.getContext() != null && session.getContext().getUserPreferences() != null) {
+            return session.getContext().getUserPreferences();
+        }
+        return new HashMap<>();
+    }
+
+    /**
+     * Genera respuesta cuando todos los slots están completos y se puede ejecutar la acción
+     */
+    private String generateExecutionResponse(String intentId, Map<String, Object> filledSlots) {
+        switch (intentId) {
             case "consultar_tiempo":
-                String ubicacion = (String) result.getDetectedEntities().get("ubicacion");
+                String ubicacion = (String) filledSlots.get("ubicacion");
                 return ubicacion != null ? 
                     "Consultando el tiempo en " + ubicacion + "..." :
-                    "¿De qué ciudad quieres consultar el tiempo?";
+                    "Consultando el tiempo...";
                     
             case "encender_luz":
-                String lugar = (String) result.getDetectedEntities().get("lugar");
+                String lugar = (String) filledSlots.get("lugar");
                 return lugar != null ?
                     "Encendiendo la luz en " + lugar + "..." :
-                    "¿En qué habitación quieres encender la luz?";
+                    "Encendiendo la luz...";
                     
             default:
-                return "Entendido. Procesando tu petición...";
+                return "Procesando tu petición...";
+        }
+    }
+
+    /**
+     * Genera respuesta de fallback cuando falla el slot-filling
+     */
+    private String generateFallbackResponse(String intentId) {
+        switch (intentId) {
+            case "consultar_tiempo":
+                return "¿De qué ciudad quieres consultar el tiempo?";
+            case "encender_luz":
+                return "¿En qué habitación quieres encender la luz?";
+            default:
+                return "¿Podrías proporcionar más información para completar tu petición?";
+        }
+    }
+
+    /**
+     * Genera pregunta de fallback para un slot específico
+     */
+    private String generateFallbackSlotQuestion(String slotName) {
+        if (slotName == null) {
+            return "¿Podrías proporcionar más información?";
+        }
+        
+        switch (slotName.toLowerCase()) {
+            case "ubicacion":
+            case "lugar":
+                return "¿En qué lugar o ubicación?";
+            case "fecha":
+                return "¿Para qué fecha?";
+            case "hora":
+                return "¿A qué hora?";
+            default:
+                return "¿Podrías especificar " + slotName + "?";
         }
     }
 
@@ -463,9 +584,13 @@ public class ConversationManager {
     // Clases de request/response
 
     public static class ConversationRequest {
+        @JsonProperty("sessionId")
         private String sessionId;
+        @JsonProperty("userId")
         private String userId;
+        @JsonProperty("userMessage")
         private String userMessage;
+        @JsonProperty("metadata")
         private Map<String, Object> metadata;
 
         // Getters y Setters

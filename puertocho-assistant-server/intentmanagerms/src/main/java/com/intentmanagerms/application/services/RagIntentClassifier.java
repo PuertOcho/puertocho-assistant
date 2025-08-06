@@ -52,7 +52,7 @@ public class RagIntentClassifier {
     @Value("${rag.classifier.default-confidence-threshold:0.7}")
     private double defaultConfidenceThreshold;
     
-    @Value("${rag.classifier.similarity-threshold:0.6}")
+    @Value("${rag.classifier.similarity-threshold:0.5}")
     private double similarityThreshold;
     
     @Value("${rag.classifier.enable-fallback:true}")

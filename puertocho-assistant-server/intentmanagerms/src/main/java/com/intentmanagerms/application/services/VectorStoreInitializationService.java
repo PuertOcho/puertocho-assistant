@@ -33,7 +33,7 @@ public class VectorStoreInitializationService {
     @Value("${vector-store.initialize-with-examples:true}")
     private boolean initializeWithExamples;
     
-    @Value("${vector-store.example-count:5}")
+    @Value("${vector-store.example-count:89}")
     private int exampleCount;
     
     /**

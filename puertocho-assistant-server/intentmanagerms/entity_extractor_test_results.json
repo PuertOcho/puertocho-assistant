@@ -1,0 +1,79 @@
+{
+  "service": "EntityExtractor",
+  "version": "T4.3",
+  "timestamp": "2025-08-06T18:42:52.349651",
+  "total_tests": 11,
+  "passed_tests": 11,
+  "failed_tests": 0,
+  "success_rate": 100.0,
+  "execution_time_seconds": 0.06905269622802734,
+  "test_results": [
+    {
+      "test": "Health Check",
+      "success": true,
+      "details": "Servicio saludable - healthy",
+      "timestamp": "2025-08-06T18:42:52.289661"
+    },
+    {
+      "test": "Statistics",
+      "success": true,
+      "details": "Estad\u00edsticas obtenidas: 13 campos",
+      "timestamp": "2025-08-06T18:42:52.293173"
+    },
+    {
+      "test": "Basic Entity Extraction",
+      "success": true,
+      "details": "Extracci\u00f3n exitosa: 5 entidades encontradas",
+      "timestamp": "2025-08-06T18:42:52.311504"
+    },
+    {
+      "test": "Specific Entity Extraction",
+      "success": true,
+      "details": "Extracci\u00f3n espec\u00edfica exitosa: 4 entidades encontradas",
+      "timestamp": "2025-08-06T18:42:52.318601"
+    },
+    {
+      "test": "Contextual Extraction",
+      "success": true,
+      "details": "Extracci\u00f3n contextual exitosa: 0 entidades, 0 an\u00e1foras resueltas",
+      "timestamp": "2025-08-06T18:42:52.326127"
+    },
+    {
+      "test": "Entity Validation",
+      "success": true,
+      "details": "Validaci\u00f3n exitosa: 1 entidades validadas, 0 errores",
+      "timestamp": "2025-08-06T18:42:52.332356"
+    },
+    {
+      "test": "Anaphora Resolution",
+      "success": true,
+      "details": "Resoluci\u00f3n exitosa: 0 an\u00e1foras resueltas",
+      "timestamp": "2025-08-06T18:42:52.336298"
+    },
+    {
+      "test": "Cache Management",
+      "success": true,
+      "details": "Cache limpiado exitosamente",
+      "timestamp": "2025-08-06T18:42:52.339081"
+    },
+    {
+      "test": "Error Handling",
+      "success": true,
+      "details": "Manejo de errores correcto (texto vac\u00edo)",
+      "timestamp": "2025-08-06T18:42:52.341878"
+    },
+    {
+      "test": "Performance",
+      "success": true,
+      "details": "Rendimiento aceptable: 0.00s (reportado: 0.00s)",
+      "timestamp": "2025-08-06T18:42:52.346481"
+    },
+    {
+      "test": "Service Test Endpoint",
+      "success": true,
+      "details": "Prueba automatizada del servicio exitosa",
+      "timestamp": "2025-08-06T18:42:52.349552"
+    }
+  ],
+  "overall_success": true
+}
