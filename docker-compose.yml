@@ -79,10 +79,8 @@ services:
       context: ./puertocho-assistant-server/configms
       dockerfile: dockerfile
     container_name: ${CONFIG_SERVICE}
-    environment:
-      - CONFIG_SERVICE=${CONFIG_SERVICE}
-      - PORT_CONFIG=${PORT_CONFIG}
-      - SPRING_APPLICATION_NAME=${CONFIG_SERVICE}
+    env_file:
+      - .env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://${CONFIG_SERVICE}:${PORT_CONFIG}/actuator/health"]
@@ -213,64 +211,8 @@ services:
       context: ./puertocho-assistant-server/intentmanagerms
       dockerfile: Dockerfile
     container_name: ${INTENT_MANAGER_SERVICE}
-    environment:
-      # Spring Boot & Eureka Configuration
-      - INTENT_MANAGER_SERVICE=${INTENT_MANAGER_SERVICE}
-      - SERVER_PORT=${PORT_INTENT_MANAGER}
-      - SPRING_APPLICATION_NAME=${INTENT_MANAGER_SERVICE}
-      - EUREKA_SERVICE=${EUREKA_SERVICE}
-      - PORT_EUREKA=${PORT_EUREKA}
-      - CONFIG_SERVICE=${CONFIG_SERVICE}
-      - PORT_CONFIG=${PORT_CONFIG}
-      
-      # Redis Configuration for Conversation State
-      - REDIS_HOST=${REDIS_SERVICE:-puertocho-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      
-      # LLM Configuration - Primary LLM
-      - PRIMARY_LLM_MODEL=${PRIMARY_LLM_MODEL:-gpt-4}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      
-      # MoE Voting System Configuration
-      - MOE_ENABLED=${MOE_ENABLED:-true}
-      - MOE_LLM_A_MODEL=${MOE_LLM_A_MODEL:-gpt-4}
-      - MOE_LLM_B_MODEL=${MOE_LLM_B_MODEL:-claude-3-sonnet-20240229}
-      - MOE_LLM_C_MODEL=${MOE_LLM_C_MODEL:-gpt-3.5-turbo}
-      
-      # RAG Configuration
-      - VECTOR_STORE_TYPE=${VECTOR_STORE_TYPE:-in-memory}
-      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-openai}
-      - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-text-embedding-ada-002}
-      - CHROMA_URL=${CHROMA_URL:-http://localhost:8001}
-      
-      # Configuration Files Hot-reload
-      - CONFIG_HOT_RELOAD=${CONFIG_HOT_RELOAD:-true}
-      - INTENTS_CONFIG_FILE=${INTENTS_CONFIG_FILE:-classpath:config/intents.json}
-      - MCP_REGISTRY_FILE=${MCP_REGISTRY_FILE:-classpath:config/mcp_registry.json}
-      - MOE_VOTING_FILE=${MOE_VOTING_FILE:-classpath:config/moe_voting.json}
-      
-      # MCP Services Configuration
-      - MCP_ENABLED=${MCP_ENABLED:-true}
-      - WHISPER_SERVICE_URL=${WHISPER_SERVICE_URL:-http://puertocho-assistant-whisper:5000}
-      - WHISPER_ENABLED=${WHISPER_ENABLED:-true}
-      - WEATHER_SERVICE_URL=${WEATHER_SERVICE_URL:-http://weather-mcp:5000}
-      - WEATHER_ENABLED=${WEATHER_ENABLED:-true}
-      - TAIGA_SERVICE_URL=${TAIGA_SERVICE_URL:-http://taiga-mcp-ms:5000}
-      - TAIGA_ENABLED=${TAIGA_ENABLED:-true}
-      - SYSTEM_SERVICE_URL=${SYSTEM_SERVICE_URL:-http://system-mcp:5000}
-      - SYSTEM_ENABLED=${SYSTEM_ENABLED:-true}
-      
-      # Conversation Management
-      - SESSION_TTL=${SESSION_TTL:-3600}
-      - MAX_HISTORY=${MAX_HISTORY:-50}
-      - AUTO_COMPLETE_THRESHOLD=${AUTO_COMPLETE_THRESHOLD:-0.85}
-      - SUBTASK_TIMEOUT=${SUBTASK_TIMEOUT:-120}
-      
-      # Logging Configuration
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - LANGCHAIN4J_LOG_LEVEL=${LANGCHAIN4J_LOG_LEVEL:-WARN}
+    env_file:
+      - .env
     ports:
       - "9904:9904"
     restart: unless-stopped
@@ -287,36 +229,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 40s
-    networks:
-      - puertocho-assistant-network
-
-  # Servicio DU - Rasa Pro para procesamiento de diálogos
-  du-puertocho-ms:
-    build:
-      context: ./puertocho-assistant-server/du-puertocho-ms
-      dockerfile: Dockerfile
-    container_name: ${DU_SERVICE:-du-puertocho-ms}
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - RASA_PRO_LICENSE=${RASA_PRO_LICENSE}
-      - RASA_DEBUG=${RASA_DEBUG:-true}
-      - RASA_CORS=${RASA_CORS:-*}
-      - RASA_MODEL=${RASA_MODEL:-models}
-      - ACTIONS_PORT=${ACTIONS_PORT:-5055}
-      - LANG=${LANG:-es}
-      - LLM_MODEL=${LLM_MODEL:-gpt-4-turbo}
-    ports:
-      - "${PORT_DU:-5005}:5005"
-    volumes:
-      - ./puertocho-assistant-server/du-puertocho-ms:/app
-    command: ["rasa", "run", "--enable-api", "--cors", "${RASA_CORS:-*}", "--debug"]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5005/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
     networks:
       - puertocho-assistant-network
 
