@@ -1,0 +1,78 @@
+{
+  "test_suite": "Dynamic Subtask Decomposer",
+  "timestamp": "2025-08-06T19:34:11.982038",
+  "total_time_seconds": 0.07161426544189453,
+  "results": [
+    {
+      "test_name": "Health Check",
+      "success": true,
+      "details": "Servicio: Dynamic Subtask Decomposer, Versión: 1.0.0",
+      "timestamp": "2025-08-06T19:34:11.919439"
+    },
+    {
+      "test_name": "Statistics",
+      "success": true,
+      "details": "Acciones soportadas: 8",
+      "timestamp": "2025-08-06T19:34:11.922348"
+    },
+    {
+      "test_name": "Simple Decomposition",
+      "success": true,
+      "details": "Subtareas generadas: 2, Confianza: 0.81",
+      "timestamp": "2025-08-06T19:34:11.943591"
+    },
+    {
+      "test_name": "Complex Decomposition",
+      "success": true,
+      "details": "Subtareas: 2, Dependencias: True, Confianza: 0.85",
+      "timestamp": "2025-08-06T19:34:11.947652"
+    },
+    {
+      "test_name": "Multiple Actions Decomposition",
+      "success": true,
+      "details": "Subtareas: 10, Ejecución paralela: True, Confianza: 0.47",
+      "timestamp": "2025-08-06T19:34:11.952347"
+    },
+    {
+      "test_name": "Simple Decomposition Endpoint",
+      "success": true,
+      "details": "Subtareas generadas: 2",
+      "timestamp": "2025-08-06T19:34:11.957702"
+    },
+    {
+      "test_name": "Validation Endpoint",
+      "success": true,
+      "details": "Solicitud válida aceptada",
+      "timestamp": "2025-08-06T19:34:11.960661"
+    },
+    {
+      "test_name": "Available Actions",
+      "success": true,
+      "details": "Acciones disponibles: 21",
+      "timestamp": "2025-08-06T19:34:11.962788"
+    },
+    {
+      "test_name": "Action Info",
+      "success": true,
+      "details": "Acción: consultar_tiempo, Duración estimada: 2000ms",
+      "timestamp": "2025-08-06T19:34:11.970460"
+    },
+    {
+      "test_name": "Examples Endpoint",
+      "success": true,
+      "details": "Ejemplos simples: 4, Complejos: 4",
+      "timestamp": "2025-08-06T19:34:11.973687"
+    },
+    {
+      "test_name": "Service Test Endpoint",
+      "success": true,
+      "details": "Tests: 3/3, Tasa de éxito: 1.00",
+      "timestamp": "2025-08-06T19:34:11.981837"
+    }
+  ],
+  "summary": {
+    "total_tests": 11,
+    "successful_tests": 11,
+    "failed_tests": 0
+  }
+}

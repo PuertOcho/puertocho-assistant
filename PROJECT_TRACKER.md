@@ -100,7 +100,7 @@
 | T4.2 | Implementar slot-filling automático usando LLM para preguntas dinámicas | T4.1 | ✅ |
 | T4.3 | Crear `EntityExtractor` basado en LLM para extracción contextual | T4.1 | ✅ |
 | T4.4 | Desarrollar memoria conversacional con Redis para sesiones persistentes | T4.1 | ✅ |
-| T4.5 | Crear `DynamicSubtaskDecomposer` - LLM analiza petición y identifica múltiples acciones automáticamente | T4.1 | ⏳ |
+| T4.5 | Crear `DynamicSubtaskDecomposer` - LLM analiza petición y identifica múltiples acciones automáticamente | T4.1 | ✅ |
 | T4.6 | Implementar `TaskOrchestrator` para ejecución secuencial/paralela de subtareas detectadas dinámicamente | T4.5 | ⏳ |
 | T4.7 | Desarrollar sistema de estado de progreso: tracking automático hasta completion de todas las subtareas | T4.6 | ⏳ |
 | T4.8 | Implementar resolución de anáforas y referencias contextuales | T4.4 | ⏳ |
