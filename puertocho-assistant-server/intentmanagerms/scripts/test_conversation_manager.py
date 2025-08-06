@@ -106,12 +106,12 @@ class ConversationManagerTester:
             
             if response.status_code == 200:
                 data = response.json()
-                session_created = (data.get("sessionId") == self.session_id and 
-                                 data.get("userId") == self.user_id and
-                                 data.get("state") == "active")
+                session_created = (data.get("session_id") == self.session_id and 
+                                 data.get("user_id") == self.user_id and
+                                 data.get("state") == "ACTIVE")
                 
                 self.log_test("Create Session", session_created,
-                             f"Session ID: {data.get('sessionId')}, State: {data.get('state')}")
+                             f"Session ID: {data.get('session_id')}, State: {data.get('state')}")
                 return session_created
             else:
                 self.log_test("Create Session", False, f"Status code: {response.status_code}")
@@ -128,11 +128,11 @@ class ConversationManagerTester:
             
             if response.status_code == 200:
                 data = response.json()
-                session_found = (data.get("sessionId") == self.session_id and 
-                               data.get("userId") == self.user_id)
+                session_found = (data.get("session_id") == self.session_id and 
+                               data.get("user_id") == self.user_id)
                 
                 self.log_test("Get Session", session_found,
-                             f"Session ID: {data.get('sessionId')}, Turn count: {data.get('turnCount')}")
+                             f"Session ID: {data.get('session_id')}, Turn count: {data.get('turn_count')}")
                 return session_found
             else:
                 self.log_test("Get Session", False, f"Status code: {response.status_code}")
