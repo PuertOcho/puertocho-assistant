@@ -120,7 +120,7 @@
 
 | ID | Descripción | Dependencias | Estado |
 |----|-------------|--------------|--------|
-| T5.1 | Crear `AudioProcessingController` para recibir audio multipart/form-data | T1.1 | ⏳ |
+| T5.1 | Crear `AudioProcessingController` para recibir audio multipart/form-data | T1.1 | ✅ |
 | T5.2 | Implementar cliente `WhisperTranscriptionService` para whisper-ms | T5.1 | ⏳ |
 | T5.3 | Desarrollar pipeline Audio → Transcripción → Clasificación → Respuesta | T5.2, T2.1 | ⏳ |
 | T5.4 | Añadir soporte para metadata de audio y contexto de dispositivo | T5.1 | ⏳ |
@@ -213,7 +213,8 @@
 - **Epic 2**: 5/5 tareas completadas (100%) ✅
 - **Epic 3**: 5/5 tareas completadas (100%) ✅
 - **Epic 4**: 8/8 tareas completadas (100%) ✅
-- **Total General**: 23/50 tareas completadas (46%)
+- **Epic 5**: 1/5 tareas completadas (20%) 🔄
+- **Total General**: 24/50 tareas completadas (48%)
 
 ---
 
@@ -443,6 +444,6 @@ VECTOR_STORE_EXAMPLE_COUNT=5
 📝 Documentación: COMPLETA en archivos específicos
 
 🔄 PRÓXIMOS PASOS:
-⏳ Epic 5 - Integración Audio y Transcripción
+🔄 Epic 5 - Integración Audio y Transcripción (T5.1 ✅ completado)
 ⏳ Epic 6 - MCP Integration
 ⏳ Epic 7 - API y Compatibilidad
