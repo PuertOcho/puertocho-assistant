@@ -66,7 +66,8 @@ public enum ConversationState {
      * Verifica si el estado permite recibir nuevos mensajes.
      */
     public boolean canReceiveMessages() {
-        return this == ACTIVE || this == WAITING_SLOTS;
+        // Permitir mensajes también durante EXECUTING_TASKS para simular ejecución inmediata
+        return this == ACTIVE || this == WAITING_SLOTS || this == EXECUTING_TASKS;
     }
 
     /**

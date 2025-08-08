@@ -12,7 +12,7 @@
     "debate_consensus_improvement_threshold": 0.1,
     "llm_participants": [
       {
-        "id": "llm_a",
+        "id": "moe-llm-a",
         "name": "Critical Analyzer",
         "provider": "openai",
         "model": "gpt-4",
@@ -23,7 +23,7 @@
         "prompt_template": "Eres un experto en análisis crítico. Analiza esta petición del usuario y determina la intención más precisa y las entidades necesarias. Sé muy preciso y considera el contexto completo.\n\nPetición: {user_message}\nContexto: {conversation_context}\n\nResponde en formato JSON: {\"intent\": \"nombre_intencion\", \"entities\": {\"entidad\": \"valor\"}, \"confidence\": 0.0-1.0, \"reasoning\": \"breve explicación\"}"
       },
       {
-        "id": "llm_b", 
+        "id": "moe-llm-b", 
         "name": "Context Specialist",
         "provider": "anthropic",
         "model": "claude-3-sonnet-20240229",
@@ -34,7 +34,7 @@
         "prompt_template": "Eres un especialista en contexto conversacional. Analiza esta petición considerando especialmente el flujo de la conversación y las referencias implícitas.\n\nPetición: {user_message}\nHistorial conversacional: {conversation_history}\nContexto actual: {conversation_context}\n\nResponde en formato JSON: {\"intent\": \"nombre_intencion\", \"entities\": {\"entidad\": \"valor\"}, \"confidence\": 0.0-1.0, \"reasoning\": \"breve explicación\"}"
       },
       {
-        "id": "llm_c",
+        "id": "moe-llm-c",
         "name": "Action Pragmatist", 
         "provider": "openai",
         "model": "gpt-3.5-turbo",
@@ -57,7 +57,7 @@
       "on_no_consensus": "use_highest_confidence",
       "on_timeout": "use_primary_llm",
       "on_error": "use_single_llm_mode",
-      "primary_llm_id": "llm_a"
+      "primary_llm_id": "moe-llm-a"
     }
   },
   "single_llm_mode": {

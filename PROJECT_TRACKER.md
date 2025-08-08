@@ -125,8 +125,8 @@
 | T5.2.5 | Implementar generación de audio TTS para respuestas | T5.2 | ✅ |
 | T5.3 | Desarrollar pipeline Audio → Transcripción → Clasificación → Respuesta | T5.2.5, T2.1 | ✅ |
 | T5.3.5 | 🔧 **CORRECCIÓN ARQUITECTURA**: Extender ConversationManagerController para soporte de audio conversacional | T5.3, T4.1 | ✅ |
-| T5.4 | Añadir soporte para metadata de audio y contexto de dispositivo | T5.1 | ⏳ |
-| T5.5 | Implementar manejo de errores de transcripción con fallbacks | T5.2 | ⏳ |
+| T5.4 | Añadir soporte para metadata de audio y contexto de dispositivo | T5.1 | ✅ |
+| T5.5 | Implementar manejo de errores de transcripción con fallbacks | T5.2 | ✅ |
 
 **🎉 T5.3.5 COMPLETADO AL 100% - ARQUITECTURA CORREGIDA**
 - ✅ **ConversationManagerController Extendido**: Soporte completo para audio en conversación
@@ -218,7 +218,7 @@
 - ⏳ **Epic 8**: Configuración JSON
 
 ### ⏳ **Fase 3: Integración**
-- ⏳ **Epic 5**: Integración Audio
+- ✅ **Epic 5**: Integración Audio (COMPLETADO)
 - ⏳ **Epic 6**: MCP Integration
 - ⏳ **Epic 7**: API y Compatibilidad
 

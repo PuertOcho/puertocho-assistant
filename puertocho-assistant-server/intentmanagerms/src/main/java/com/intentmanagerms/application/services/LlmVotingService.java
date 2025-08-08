@@ -14,6 +14,10 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
+import java.text.Normalizer;
+// import com.fasterxml.jackson.core.type.TypeReference; // Eliminado: no usado
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Servicio principal para el sistema de votación MoE (Mixture of Experts).
@@ -200,7 +204,8 @@ public class LlmVotingService {
         round.setConsensus(currentConsensus);
         
         // T3.5: Verificar si el consenso falló y activar fallback automáticamente
-        if (currentConsensus.getAgreementLevel() == VotingConsensus.AgreementLevel.FAILED || 
+        if (currentConsensus == null ||
+            currentConsensus.getAgreementLevel() == VotingConsensus.AgreementLevel.FAILED || 
             currentConsensus.getConsensusConfidence() < consensusThreshold ||
             "unknown".equals(currentConsensus.getFinalIntent())) {
             
@@ -477,12 +482,219 @@ public class LlmVotingService {
      * Ejecuta la llamada al LLM (simulada por ahora).
      */
     private String executeLlmCall(LlmConfiguration llmConfig, String prompt) {
-        // TODO: Implementar llamada real al LLM usando la configuración
-        // Por ahora, simulamos una respuesta
-        logger.debug("Ejecutando llamada al LLM {} con prompt: {}", llmConfig.getId(), prompt);
-        
-        // Simulación de respuesta
-        return "{\"intent\": \"ayuda\", \"entities\": {}, \"confidence\": 0.8, \"reasoning\": \"Respuesta simulada\"}";
+        // Simulación mejorada: clasificar intención y extraer entidades a partir del mensaje del usuario
+        logger.debug("Ejecutando llamada al LLM {} (simulada) con prompt", llmConfig.getId());
+
+        String userMessage = extractUserMessageFromPrompt(prompt);
+        Map<String, Object> entities = new HashMap<>();
+        String detectedIntent = classifyIntentHeuristically(userMessage, entities);
+        double confidence = estimateConfidence(detectedIntent, userMessage);
+        String reasoning = "Clasificación heurística basada en palabras clave y patrones";
+
+        try {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("intent", detectedIntent);
+            response.put("entities", entities);
+            response.put("confidence", confidence);
+            response.put("reasoning", reasoning);
+            response.put("subtasks", new ArrayList<>());
+            return objectMapper.writeValueAsString(response);
+        } catch (Exception e) {
+            // Fallback mínimo si algo falla
+            return "{\"intent\": \"ayuda\", \"entities\": {}, \"confidence\": 0.5, \"reasoning\": \"Fallback por error de simulación\"}";
+        }
+    }
+
+    private String extractUserMessageFromPrompt(String prompt) {
+        if (prompt == null) {
+            return "";
+        }
+        // Buscar etiquetas comunes en prompts
+        String[] markers = new String[] {"Petición del usuario:", "Mensaje del usuario:", "Petición:", "Mensaje:"};
+        for (String marker : markers) {
+            int idx = prompt.indexOf(marker);
+            if (idx >= 0) {
+                int start = idx + marker.length();
+                int end = prompt.indexOf('\n', start);
+                String line = end >= 0 ? prompt.substring(start, end) : prompt.substring(start);
+                return line.trim();
+            }
+        }
+        return "";
+    }
+
+    private String classifyIntentHeuristically(String message, Map<String, Object> entitiesOut) {
+        if (message == null) message = "";
+        String normalized = normalize(message);
+
+        // Diccionarios simples
+        Set<String> roomWords = new HashSet<>(Arrays.asList(
+            "salon", "salón", "dormitorio", "habitacion", "habitación", "comedor", "cocina", "baño", "bano", "sala", "cuarto", "estudio"
+        ));
+        Set<String> genres = new HashSet<>(Arrays.asList("jazz", "rock", "clasica", "clásica", "relajante", "pop", "electrónica", "electronica"));
+        Set<String> colors = new HashSet<>(Arrays.asList("roja", "rojo", "verde", "azul", "blanca", "blanco", "amarilla", "amarillo", "morado", "violeta"));
+
+        // Reglas por intención
+        // consultar_tiempo
+        if (containsAny(normalized, "tiempo", "clima", "llueve", "temperatura", "pronostico", "pronóstico")) {
+            String location = extractLocation(message);
+            if (location != null && !location.isEmpty()) {
+                entitiesOut.put("ubicacion", location);
+            }
+            return "consultar_tiempo";
+        }
+
+        // encender_luz
+        if (containsAny(normalized, "enciende", "prende", "activa", "ilumina") && containsAny(normalized, "luz", "luces")) {
+            String room = extractRoom(normalized, roomWords);
+            if (room != null) {
+                entitiesOut.put("lugar", room);
+            }
+            String color = extractColor(normalized, colors);
+            if (color != null) {
+                entitiesOut.put("color", color);
+            }
+            return "encender_luz";
+        }
+
+        // apagar_luz
+        if (containsAny(normalized, "apaga", "apagar", "desactiva", "oscurece") && containsAny(normalized, "luz", "luces")) {
+            String room = extractRoom(normalized, roomWords);
+            if (room != null) {
+                entitiesOut.put("lugar", room);
+            }
+            return "apagar_luz";
+        }
+
+        // reproducir_musica
+        if (containsAny(normalized, "pon musica", "pon música", "reproduce", "playlist", "quiero escuchar musica", "quiero escuchar música", "musica relajante", "música relajante")) {
+            String genre = extractGenre(normalized, genres);
+            if (genre != null) {
+                entitiesOut.put("genero", genre);
+            }
+            return "reproducir_musica";
+        }
+
+        // parar_musica
+        if (containsAny(normalized, "para la musica", "deten la musica", "pausa la musica", "silencio", "stop musica", "detén la música", "para la música")) {
+            return "parar_musica";
+        }
+
+        // programar_alarma
+        if (containsAny(normalized, "alarma", "despiertame", "despiértame", "avísame", "avisame")) {
+            // Heurística mínima de hora (HH:MM)
+            String time = extractTime(message);
+            if (time != null) {
+                entitiesOut.put("fecha_hora", time);
+            }
+            return "programar_alarma";
+        }
+
+        // crear_github_issue
+        if (containsAny(normalized, "github", "issue", "bug", "ticket")) {
+            return "crear_github_issue";
+        }
+
+        // actualizar_taiga_story
+        if (containsAny(normalized, "taiga", "story", "estado", "tarea")) {
+            return "actualizar_taiga_story";
+        }
+
+        // saludo
+        if (containsAny(normalized, "hola", "buenos dias", "buenas tardes", "buenas noches", "hey", "saludos")) {
+            return "saludo";
+        }
+
+        // despedida
+        if (containsAny(normalized, "adios", "adiós", "hasta luego", "nos vemos", "chao")) {
+            return "despedida";
+        }
+
+        // agradecimiento
+        if (containsAny(normalized, "gracias", "muy amable", "te agradezco")) {
+            return "agradecimiento";
+        }
+
+        // ayuda
+        if (containsAny(normalized, "ayuda", "que puedes hacer", "qué puedes hacer", "help")) {
+            return "ayuda";
+        }
+
+        return "ayuda";
+    }
+
+    private String normalize(String text) {
+        String n = Normalizer.normalize(text.toLowerCase(Locale.ROOT), Normalizer.Form.NFD);
+        return n.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+    }
+
+    private boolean containsAny(String text, String... terms) {
+        for (String term : terms) {
+            if (text.contains(normalize(term))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String extractLocation(String originalMessage) {
+        // Buscar patrón "en <lugar>" o "de <lugar>"
+        Pattern p = Pattern.compile("\\b(?:en|de)\\s+([A-Za-zÁÉÍÓÚáéíóúñÑ]+(?:\\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+){0,3})", Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(originalMessage);
+        if (m.find()) {
+            String loc = m.group(1).trim();
+            // Limpiar signos al final
+            loc = loc.replaceAll("[\\?\\.,!]+$", "");
+            return loc;
+        }
+        return null;
+    }
+
+    private String extractRoom(String normalizedMessage, Set<String> roomWords) {
+        for (String room : roomWords) {
+            if (normalizedMessage.contains(room)) {
+                return room;
+            }
+        }
+        return null;
+    }
+
+    private String extractGenre(String normalizedMessage, Set<String> genres) {
+        for (String g : genres) {
+            if (normalizedMessage.contains(g)) {
+                return g;
+            }
+        }
+        return null;
+    }
+
+    private String extractColor(String normalizedMessage, Set<String> colors) {
+        for (String c : colors) {
+            if (normalizedMessage.contains(c)) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    private String extractTime(String originalMessage) {
+        Pattern p = Pattern.compile("(\\b[01]?\\d|2[0-3]):[0-5]\\d");
+        Matcher m = p.matcher(originalMessage);
+        if (m.find()) {
+            return m.group(0);
+        }
+        return null;
+    }
+
+    private double estimateConfidence(String intent, String message) {
+        if ("ayuda".equals(intent)) return 0.6;
+        if ("consultar_tiempo".equals(intent)) return 0.9;
+        if ("encender_luz".equals(intent) || "apagar_luz".equals(intent)) return 0.9;
+        if ("reproducir_musica".equals(intent) || "parar_musica".equals(intent)) return 0.85;
+        if ("programar_alarma".equals(intent)) return 0.8;
+        if ("crear_github_issue".equals(intent) || "actualizar_taiga_story".equals(intent)) return 0.75;
+        if ("saludo".equals(intent) || "despedida".equals(intent) || "agradecimiento".equals(intent)) return 0.95;
+        return 0.7;
     }
     
     /**

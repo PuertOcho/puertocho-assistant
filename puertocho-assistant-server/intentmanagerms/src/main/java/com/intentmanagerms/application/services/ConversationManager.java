@@ -123,11 +123,11 @@ public class ConversationManager {
                 turn.setExtractedEntities(votingRound.getConsensus().getFinalEntities());
             }
 
-            // Actualizar contexto de la sesión
-            updateSessionContext(session, turn, classificationResult);
+            // Actualizar contexto de la sesión usando SIEMPRE el resultado final del turno (consenso MoE)
+            updateSessionContext(session, turn);
 
-            // Generar respuesta del sistema
-            String systemResponse = generateSystemResponse(session, turn, classificationResult);
+            // Generar respuesta del sistema basada en la intención/confianza finales del turno
+            String systemResponse = generateSystemResponse(session, turn);
             turn.setSystemResponse(systemResponse);
 
             // Añadir turno a la sesión
@@ -366,42 +366,46 @@ public class ConversationManager {
         return history;
     }
 
-    private void updateSessionContext(ConversationSession session, ConversationTurn turn, IntentClassificationResult result) {
-        // Actualizar intent actual
-        if (result.getIntentId() != null) {
-            session.setCurrentIntent(result.getIntentId());
-            session.getContext().recordIntent(result.getIntentId());
+    private void updateSessionContext(ConversationSession session, ConversationTurn turn) {
+        // Actualizar intent actual con el intent final del turno
+        if (turn.getDetectedIntent() != null) {
+            session.setCurrentIntent(turn.getDetectedIntent());
+            if (session.getContext() != null) {
+                session.getContext().recordIntent(turn.getDetectedIntent());
+            }
         }
 
-        // Actualizar slots
-        if (result.getDetectedEntities() != null) {
-            for (Map.Entry<String, Object> entry : result.getDetectedEntities().entrySet()) {
+        // Actualizar slots con las entidades finales del turno
+        if (turn.getExtractedEntities() != null) {
+            for (Map.Entry<String, Object> entry : turn.getExtractedEntities().entrySet()) {
                 session.updateSlot(entry.getKey(), entry.getValue());
-                session.getContext().cacheEntity(entry.getKey(), entry.getValue());
+                if (session.getContext() != null) {
+                    session.getContext().cacheEntity(entry.getKey(), entry.getValue());
+                }
             }
         }
 
         // Actualizar metadatos de conversación
-        session.updateMetadata("last_intent", result.getIntentId());
-        session.updateMetadata("last_confidence", result.getConfidenceScore());
+        session.updateMetadata("last_intent", turn.getDetectedIntent());
+        session.updateMetadata("last_confidence", turn.getConfidenceScore());
         session.updateMetadata("last_processing_time_ms", turn.getProcessingTimeMs());
 
         // Comprimir contexto si es necesario
-        if (session.getContext().needsCompression(contextCompressionThreshold)) {
+        if (session.getContext() != null && session.getContext().needsCompression(contextCompressionThreshold)) {
             session.getContext().compressContext();
         }
     }
 
-    private String generateSystemResponse(ConversationSession session, ConversationTurn turn, IntentClassificationResult result) {
-        // Verificar confianza de clasificación
-        if (result.getConfidenceScore() != null && result.getConfidenceScore() < 0.7) {
+    private String generateSystemResponse(ConversationSession session, ConversationTurn turn) {
+        // Verificar confianza usando SIEMPRE la confianza final del turno
+        if (turn.getConfidenceScore() < 0.7) {
             return "No estoy seguro de entender. ¿Podrías reformular tu petición?";
         }
 
         try {
-            // Preparar solicitud de slot-filling
+            // Preparar solicitud de slot-filling con el intent final del turno
             SlotFillingRequest slotRequest = new SlotFillingRequest(
-                result.getIntentId(), 
+                turn.getDetectedIntent(), 
                 turn.getUserMessage(), 
                 session.getSessionId()
             );
@@ -413,13 +417,20 @@ public class ConversationManager {
             SlotFillingResult slotResult = slotFillingService.processSlotFilling(slotRequest);
             
             if (!slotResult.isSuccess()) {
-                logger.warn("Error en slot-filling para intent '{}': {}", result.getIntentId(), slotResult.getErrorMessage());
-                return generateFallbackResponse(result.getIntentId());
+                logger.warn("Error en slot-filling para intent '{}': {}", turn.getDetectedIntent(), slotResult.getErrorMessage());
+                return generateFallbackResponse(turn.getDetectedIntent());
             }
 
             // Actualizar slots en la sesión
-            if (slotResult.getFilledSlots() != null) {
-                session.getSlots().putAll(slotResult.getFilledSlots());
+                if (slotResult.getFilledSlots() != null && !slotResult.getFilledSlots().isEmpty()) {
+                // Asegurar que el mapa de slots de la sesión esté inicializado
+                if (session.getSlots() == null) {
+                    session.updateSlot("__init__", null);
+                    session.getSlots().remove("__init__");
+                }
+                for (Map.Entry<String, Object> entry : slotResult.getFilledSlots().entrySet()) {
+                    session.updateSlot(entry.getKey(), entry.getValue());
+                }
             }
 
             // Verificar si faltan slots
@@ -435,15 +446,38 @@ public class ConversationManager {
                     return generateFallbackSlotQuestion(slotResult.getNextSlotToFill());
                 }
             } else {
-                // Todos los slots están completos, proceder con la acción
-                session.setState(ConversationState.EXECUTING_TASKS);
-                return generateExecutionResponse(result.getIntentId(), slotResult.getFilledSlots());
+                // Todos los slots están completos
+                if (isExecutableIntent(turn.getDetectedIntent())) {
+                    // Proceder con la acción solo para intents ejecutables
+                    session.setState(ConversationState.EXECUTING_TASKS);
+                    String execResponse = generateExecutionResponse(turn.getDetectedIntent(), slotResult.getFilledSlots());
+                    // Simular finalización inmediata de la tarea para permitir continuidad de conversación
+                    session.setState(ConversationState.ACTIVE);
+                    return execResponse;
+                } else {
+                    // Mantener la conversación activa para intents informativos/genéricos
+                    session.setState(ConversationState.ACTIVE);
+                    return generateFallbackResponse(turn.getDetectedIntent());
+                }
             }
 
         } catch (Exception e) {
             logger.error("Error en generación de respuesta con slot-filling para intent '{}': {}", 
-                        result.getIntentId(), e.getMessage(), e);
-            return generateFallbackResponse(result.getIntentId());
+                        turn.getDetectedIntent(), e.getMessage(), e);
+            return generateFallbackResponse(turn.getDetectedIntent());
+        }
+    }
+
+    private boolean isExecutableIntent(String intentId) {
+        if (intentId == null) {
+            return false;
+        }
+        switch (intentId) {
+            case "consultar_tiempo":
+            case "encender_luz":
+                return true;
+            default:
+                return false;
         }
     }
 
