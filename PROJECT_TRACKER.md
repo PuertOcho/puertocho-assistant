@@ -122,7 +122,8 @@
 |----|-------------|--------------|--------|
 | T5.1 | Crear `AudioProcessingController` para recibir audio multipart/form-data | T1.1 | ✅ |
 | T5.2 | Implementar cliente `WhisperTranscriptionService` para whisper-ms | T5.1 | ✅ |
-| T5.3 | Desarrollar pipeline Audio → Transcripción → Clasificación → Respuesta | T5.2, T2.1 | ⏳ |
+| T5.2.5 | Implementar generación de audio TTS para respuestas | T5.2 | ✅ |
+| T5.3 | Desarrollar pipeline Audio → Transcripción → Clasificación → Respuesta | T5.2.5, T2.1 | ⏳ |
 | T5.4 | Añadir soporte para metadata de audio y contexto de dispositivo | T5.1 | ⏳ |
 | T5.5 | Implementar manejo de errores de transcripción con fallbacks | T5.2 | ⏳ |
 
@@ -221,8 +222,8 @@
 - **Epic 2**: 5/5 tareas completadas (100%) ✅
 - **Epic 3**: 5/5 tareas completadas (100%) ✅
 - **Epic 4**: 8/8 tareas completadas (100%) ✅
-- **Epic 5**: 2/5 tareas completadas (40%) 🔄 (T5.2 completado al 100%)
-- **Total General**: 25/50 tareas completadas (50%)
+- **Epic 5**: 3/6 tareas completadas (50%) 🔄 (T5.2.5 completado al 100%)
+- **Total General**: 26/51 tareas completadas (51%)
 
 ---
 

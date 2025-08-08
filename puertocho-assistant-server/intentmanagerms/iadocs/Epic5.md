@@ -142,13 +142,78 @@ POST /api/v1/whisper/test                    # Test con audio de ejemplo
 
 ---
 
+**🎉 T5.2.5 COMPLETADO AL 100% - ÉXITO TOTAL**
+- ✅ **TtsGenerationService**: Servicio principal con soporte para Azure y Kokoro TTS
+- ✅ **8 endpoints REST**: Generación síncrona/asíncrona, health, providers, voices, test, stats, cache
+- ✅ **Integración completa**: Comunicación con servicios TTS externos funcionando
+- ✅ **Pruebas automatizadas**: Script unificado con 11/11 pruebas exitosas (100%)
+- ✅ **Configuración actualizada**: URLs correctas para Azure (puerto 5004) y Kokoro (puerto 5002)
+- ✅ **Fallback inteligente**: Cambio automático entre proveedores en caso de fallo
+- ✅ **Cache de audio**: Sistema de cache para optimizar rendimiento
+- ✅ **Manejo de errores**: Validación robusta y respuestas informativas
+
+---
+
+### **T5.2.5 ✅ - Generación de Audio TTS para Respuestas**
+**Descripción**: Implementar servicio de generación de audio TTS para convertir respuestas de texto a audio.
+
+**Objetivos específicos**:
+- Cliente HTTP para servicios TTS (Azure, F5, Kokoro)
+- Soporte para múltiples voces y idiomas
+- Manejo de timeouts y reintentos
+- Cache de audio generado
+- Fallback entre servicios TTS
+- Integración con el pipeline de respuesta
+
+**Archivos Implementados**:
+- ✅ `TtsGenerationService.java` - Servicio principal de generación TTS
+- ✅ `TtsGenerationController.java` - Controlador REST para TTS
+- ✅ `TtsGenerationRequest.java` - Modelo de request para TTS
+- ✅ `TtsGenerationResponse.java` - Modelo de response con audio
+- ✅ `test_tts_generation.py` - Script de pruebas automatizadas
+- ✅ `ejemplo_tts_generation.py` - Script de ejemplos de uso
+
+**Configuración necesaria**:
+```yaml
+# TTS Generation Configuration
+tts:
+  enabled: ${TTS_ENABLED:true}
+  default-provider: ${TTS_DEFAULT_PROVIDER:azure}
+  timeout: ${TTS_TIMEOUT:30}
+  max-retries: ${TTS_MAX_RETRIES:3}
+  cache-enabled: ${TTS_CACHE_ENABLED:true}
+  cache-ttl: ${TTS_CACHE_TTL:3600}
+  providers:
+    azure:
+      url: ${AZURE_TTS_URL:http://azure-tts-ms:5000}
+      enabled: ${AZURE_TTS_ENABLED:true}
+    f5:
+      url: ${F5_TTS_URL:http://f5-tts-ms:5000}
+      enabled: ${F5_TTS_ENABLED:true}
+    kokoro:
+      url: ${KOKORO_TTS_URL:http://kokoro-tts-ms:5000}
+      enabled: ${KOKORO_TTS_ENABLED:true}
+```
+
+**API REST Implementada**:
+```bash
+POST /api/v1/tts/generate              # Generar audio TTS
+POST /api/v1/tts/generate/async        # Generación asíncrona
+GET  /api/v1/tts/health                # Health check
+GET  /api/v1/tts/providers             # Proveedores disponibles
+GET  /api/v1/tts/voices                # Voces disponibles
+POST /api/v1/tts/test                  # Test con texto de ejemplo
+```
+
+---
+
 ### **T5.3 ⏳ - Pipeline Audio → Transcripción → Clasificación → Respuesta**
 **Descripción**: Desarrollar pipeline completo integrando todos los componentes.
 
 **Objetivos específicos**:
 - Integración completa del flujo de audio
 - Manejo de errores en cada etapa
-- Respuestas unificadas (texto + audio)
+- Respuestas unificadas (texto + audio TTS)
 - Optimización de rendimiento
 - Logging detallado del pipeline
 
@@ -200,6 +265,20 @@ AUDIO_METADATA_TEMPERATURE_ENABLED=true
 AUDIO_METADATA_DEVICE_ID_ENABLED=true
 AUDIO_METADATA_TIMESTAMP_ENABLED=true
 AUDIO_METADATA_USER_ID_ENABLED=true
+
+# TTS Generation Configuration
+TTS_ENABLED=true
+TTS_DEFAULT_PROVIDER=azure
+TTS_TIMEOUT=30
+TTS_MAX_RETRIES=3
+TTS_CACHE_ENABLED=true
+TTS_CACHE_TTL=3600
+AZURE_TTS_URL=http://azure-tts-ms:5000
+AZURE_TTS_ENABLED=true
+F5_TTS_URL=http://f5-tts-ms:5000
+F5_TTS_ENABLED=true
+KOKORO_TTS_URL=http://kokoro-tts-ms:5000
+KOKORO_TTS_ENABLED=true
 ```
 
 ## Estado del Epic 5
@@ -208,11 +287,12 @@ AUDIO_METADATA_USER_ID_ENABLED=true
 🔄 EPIC 5 - Integración Audio y Transcripción: EN PROGRESO
 ✅ T5.1 - AudioProcessingController: COMPLETADO
 ✅ T5.2 - WhisperTranscriptionService: COMPLETADO
+✅ T5.2.5 - Generación de Audio TTS: COMPLETADO
 ⏳ T5.3 - Pipeline Completo: PENDIENTE
 ⏳ T5.4 - Metadata Contextual: PENDIENTE
 ⏳ T5.5 - Manejo de Errores: PENDIENTE
 
-📊 Progreso: 2/5 tareas completadas (40%)
+📊 Progreso: 3/6 tareas completadas (50%) - T5.2.5 VERIFICADO Y FUNCIONANDO
 ```
 
 ## Integración con Epics Anteriores
