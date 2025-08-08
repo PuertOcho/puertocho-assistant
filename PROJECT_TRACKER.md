@@ -124,8 +124,17 @@
 | T5.2 | Implementar cliente `WhisperTranscriptionService` para whisper-ms | T5.1 | ✅ |
 | T5.2.5 | Implementar generación de audio TTS para respuestas | T5.2 | ✅ |
 | T5.3 | Desarrollar pipeline Audio → Transcripción → Clasificación → Respuesta | T5.2.5, T2.1 | ✅ |
+| T5.3.5 | 🔧 **CORRECCIÓN ARQUITECTURA**: Extender ConversationManagerController para soporte de audio conversacional | T5.3, T4.1 | ✅ |
 | T5.4 | Añadir soporte para metadata de audio y contexto de dispositivo | T5.1 | ⏳ |
 | T5.5 | Implementar manejo de errores de transcripción con fallbacks | T5.2 | ⏳ |
+
+**🎉 T5.3.5 COMPLETADO AL 100% - ARQUITECTURA CORREGIDA**
+- ✅ **ConversationManagerController Extendido**: Soporte completo para audio en conversación
+- ✅ **Endpoints Conversacionales**: `/api/v1/conversation/process/audio` para conversación real
+- ✅ **Estado de Conversación**: Mantenimiento de sesiones y contexto persistente
+- ✅ **Nuevo Script de Pruebas**: `test_conversation_pipeline.py` para conversación real
+- ✅ **Arquitectura Clarificada**: Separación entre endpoints técnicos vs conversacionales
+- ✅ **Documentación Actualizada**: Epic5.md con guía de uso correcto
 
 **🎉 T5.3 COMPLETADO AL 100% - ÉXITO TOTAL**
 - ✅ **Pipeline Completo**: Audio → Whisper → RAG → MoE → TTS funcionando
@@ -442,7 +451,7 @@ VECTOR_STORE_EXAMPLE_COUNT=5
 ✅ Epic 2 - Motor RAG: COMPLETADO AL 100%
 ✅ Epic 3 - MoE Voting System: COMPLETADO AL 100%
 ✅ Epic 4 - Sistema Conversacional Inteligente: COMPLETADO AL 100%
-✅ Epic 5 - Integración Audio y Transcripción: COMPLETADO AL 100%
+✅ Epic 5 - Integración Audio y Transcripción: COMPLETADO AL 100% (ARQUITECTURA CORREGIDA)
 
 🏗️ Infraestructura Base: OPERATIVA
 🔍 Motor RAG: FUNCIONANDO
@@ -451,6 +460,7 @@ VECTOR_STORE_EXAMPLE_COUNT=5
 🔍 Resolución de Anáforas: FUNCIONANDO
 🎵 Pipeline de Audio Completo: OPERATIVO
 🔊 Generación TTS: FUNCIONANDO
+💬 Conversación con Audio: OPERATIVA (ARQUITECTURA CORREGIDA)
 📊 API REST: 120+ endpoints operativos
 ✅ Pruebas: 100% exitosas
 📝 Documentación: COMPLETA en archivos específicos

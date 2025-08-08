@@ -1,18 +1,28 @@
 package com.intentmanagerms.infrastructure.web;
 
 import com.intentmanagerms.application.services.ConversationManager;
+import com.intentmanagerms.application.services.WhisperTranscriptionService;
+import com.intentmanagerms.application.services.TtsGenerationService;
 import com.intentmanagerms.domain.model.ConversationSession;
+import com.intentmanagerms.domain.model.WhisperTranscriptionRequest;
+import com.intentmanagerms.domain.model.WhisperTranscriptionResponse;
+import com.intentmanagerms.domain.model.TtsGenerationRequest;
+import com.intentmanagerms.domain.model.TtsGenerationResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Controlador REST para el gestor de conversaciones.
- * Proporciona endpoints para gestionar conversaciones, procesar mensajes y obtener estadísticas.
+ * Proporciona endpoints para gestionar conversaciones, procesar mensajes (texto y audio) y obtener estadísticas.
  */
 @RestController
 @RequestMapping("/api/v1/conversation")
@@ -24,30 +34,36 @@ public class ConversationManagerController {
     @Autowired
     private ConversationManager conversationManager;
 
+    @Autowired
+    private WhisperTranscriptionService whisperTranscriptionService;
+
+    @Autowired
+    private TtsGenerationService ttsGenerationService;
+
     /**
-     * Procesa un mensaje del usuario en el contexto de una conversación.
+     * Procesa un mensaje de texto del usuario en el contexto de una conversación.
      */
     @PostMapping("/process")
     public ResponseEntity<ConversationManager.ConversationResponse> processMessage(
             @RequestBody ConversationManager.ConversationRequest request) {
         
-        logger.info("Procesando mensaje para sesión {}: {}", request.getSessionId(), request.getUserMessage());
+        logger.info("Procesando mensaje de texto para sesión {}: {}", request.getSessionId(), request.getUserMessage());
         
         try {
             ConversationManager.ConversationResponse response = conversationManager.processMessage(request);
             
             if (response.isSuccess()) {
-                logger.info("Mensaje procesado exitosamente para sesión {}: intent={}, confidence={}", 
+                logger.info("Mensaje de texto procesado exitosamente para sesión {}: intent={}, confidence={}", 
                     request.getSessionId(), response.getDetectedIntent(), response.getConfidenceScore());
                 return ResponseEntity.ok(response);
             } else {
-                logger.warn("Error procesando mensaje para sesión {}: {}", 
+                logger.warn("Error procesando mensaje de texto para sesión {}: {}", 
                     request.getSessionId(), response.getErrorMessage());
                 return ResponseEntity.badRequest().body(response);
             }
             
         } catch (Exception e) {
-            logger.error("Error procesando mensaje para sesión {}: {}", 
+            logger.error("Error procesando mensaje de texto para sesión {}: {}", 
                 request.getSessionId(), e.getMessage(), e);
             
             ConversationManager.ConversationResponse errorResponse = new ConversationManager.ConversationResponse();
@@ -56,6 +72,142 @@ public class ConversationManagerController {
             
             return ResponseEntity.internalServerError().body(errorResponse);
         }
+    }
+
+    /**
+     * Procesa un mensaje de audio del usuario en el contexto de una conversación.
+     * Integra transcripción, clasificación de intención y generación de respuesta de audio.
+     */
+    @PostMapping(value = "/process/audio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ConversationAudioResponse> processAudioMessage(
+            @RequestParam("audio") MultipartFile audioFile,
+            @RequestParam("sessionId") String sessionId,
+            @RequestParam("userId") String userId,
+            @RequestParam(value = "language", required = false, defaultValue = "es") String language,
+            @RequestParam(value = "generateAudioResponse", required = false, defaultValue = "true") boolean generateAudioResponse,
+            @RequestParam(value = "metadata", required = false) String metadataJson) {
+        
+        logger.info("Procesando mensaje de audio para sesión {}: archivo={}, tamaño={} bytes", 
+                   sessionId, audioFile.getOriginalFilename(), audioFile.getSize());
+        
+        try {
+            // Validar archivo de audio
+            if (audioFile.isEmpty()) {
+                return createAudioErrorResponse("El archivo de audio no puede estar vacío", HttpStatus.BAD_REQUEST);
+            }
+
+            // 1. Transcribir audio usando Whisper
+            logger.info("Transcribiendo audio para sesión {}", sessionId);
+            WhisperTranscriptionRequest whisperRequest = WhisperTranscriptionRequest.builder()
+                .language(language)
+                .timeoutSeconds(30)
+                .maxRetries(3)
+                .model("base")
+                .build();
+            
+            WhisperTranscriptionResponse whisperResponse = whisperTranscriptionService.transcribeAudio(
+                audioFile.getBytes(), whisperRequest);
+            
+            if (whisperResponse.getStatus() != WhisperTranscriptionResponse.TranscriptionStatus.SUCCESS) {
+                logger.error("Error en transcripción para sesión {}: {}", sessionId, whisperResponse.getErrorMessage());
+                return createAudioErrorResponse("Error en transcripción: " + whisperResponse.getErrorMessage(), 
+                                              HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            
+            String transcribedText = whisperResponse.getTranscription();
+            logger.info("Audio transcrito para sesión {}: '{}'", sessionId, transcribedText);
+
+            // 2. Procesar mensaje transcrito con ConversationManager
+            logger.info("Procesando mensaje transcrito con ConversationManager para sesión {}", sessionId);
+            ConversationManager.ConversationRequest conversationRequest = new ConversationManager.ConversationRequest();
+            conversationRequest.setSessionId(sessionId);
+            conversationRequest.setUserId(userId);
+            conversationRequest.setUserMessage(transcribedText);
+            
+            // Añadir metadata si se proporciona
+            if (metadataJson != null && !metadataJson.trim().isEmpty()) {
+                try {
+                    // Aquí se podría parsear el JSON de metadata si es necesario
+                    logger.info("Metadata proporcionada para sesión {}: {}", sessionId, metadataJson);
+                } catch (Exception e) {
+                    logger.warn("Error parseando metadata para sesión {}: {}", sessionId, e.getMessage());
+                }
+            }
+            
+            ConversationManager.ConversationResponse conversationResponse = conversationManager.processMessage(conversationRequest);
+            
+            if (!conversationResponse.isSuccess()) {
+                logger.error("Error procesando mensaje transcrito para sesión {}: {}", 
+                           sessionId, conversationResponse.getErrorMessage());
+                return createAudioErrorResponse("Error procesando mensaje: " + conversationResponse.getErrorMessage(), 
+                                              HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+            // 3. Generar respuesta de audio si se solicita
+            byte[] audioResponse = null;
+            if (generateAudioResponse && conversationResponse.getSystemResponse() != null) {
+                logger.info("Generando respuesta de audio para sesión {}", sessionId);
+                try {
+                    TtsGenerationRequest ttsRequest = new TtsGenerationRequest();
+                    ttsRequest.setText(conversationResponse.getSystemResponse());
+                    ttsRequest.setLanguage(language);
+                    ttsRequest.setVoice("Abril");
+                    ttsRequest.setSpeed(1.0);
+                    
+                    TtsGenerationResponse ttsResponse = ttsGenerationService.generateAudio(ttsRequest);
+                    
+                    if (ttsResponse.isSuccess()) {
+                        audioResponse = ttsResponse.getAudioData();
+                        logger.info("Respuesta de audio generada para sesión {}: {} bytes", sessionId, audioResponse.length);
+                    } else {
+                        logger.warn("Error generando respuesta de audio para sesión {}: {}", 
+                                  sessionId, ttsResponse.getErrorMessage());
+                    }
+                } catch (Exception e) {
+                    logger.warn("Error generando respuesta de audio para sesión {}: {}", sessionId, e.getMessage());
+                }
+            }
+
+            // 4. Crear respuesta unificada
+            ConversationAudioResponse response = new ConversationAudioResponse();
+            response.setSuccess(true);
+            response.setSessionId(sessionId);
+            response.setTranscribedText(transcribedText);
+            response.setSystemResponse(conversationResponse.getSystemResponse());
+            response.setDetectedIntent(conversationResponse.getDetectedIntent());
+            response.setConfidenceScore(conversationResponse.getConfidenceScore());
+            response.setExtractedEntities(conversationResponse.getExtractedEntities());
+            response.setSessionState(conversationResponse.getSessionState());
+            response.setTurnCount(conversationResponse.getTurnCount());
+            response.setProcessingTimeMs(conversationResponse.getProcessingTimeMs());
+            response.setAudioResponse(audioResponse);
+            response.setAudioResponseGenerated(audioResponse != null);
+            response.setWhisperConfidence(whisperResponse.getConfidence());
+            response.setWhisperLanguage(whisperResponse.getDetectedLanguage());
+
+            logger.info("Mensaje de audio procesado exitosamente para sesión {}: intent={}, confidence={}", 
+                       sessionId, response.getDetectedIntent(), response.getConfidenceScore());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("Error procesando mensaje de audio para sesión {}: {}", sessionId, e.getMessage(), e);
+            return createAudioErrorResponse("Error procesando mensaje de audio: " + e.getMessage(), 
+                                          HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Procesa un mensaje de audio simple sin generar respuesta de audio.
+     */
+    @PostMapping(value = "/process/audio/simple", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ConversationAudioResponse> processSimpleAudioMessage(
+            @RequestParam("audio") MultipartFile audioFile,
+            @RequestParam("sessionId") String sessionId,
+            @RequestParam("userId") String userId,
+            @RequestParam(value = "language", required = false, defaultValue = "es") String language) {
+        
+        return processAudioMessage(audioFile, sessionId, userId, language, false, null);
     }
 
     /**
@@ -293,5 +445,80 @@ public class ConversationManagerController {
                 "timestamp", java.time.LocalDateTime.now().toString()
             ));
         }
+    }
+
+    private ResponseEntity<ConversationAudioResponse> createAudioErrorResponse(String message, HttpStatus status) {
+        ConversationAudioResponse response = new ConversationAudioResponse();
+        response.setSuccess(false);
+        response.setErrorMessage(message);
+        return ResponseEntity.status(status).body(response);
+    }
+
+    /**
+     * Clase de respuesta para mensajes de audio procesados en conversación.
+     * Extiende la respuesta de conversación normal con información adicional de audio.
+     */
+    public static class ConversationAudioResponse {
+        private boolean success;
+        private String sessionId;
+        private String transcribedText;
+        private String systemResponse;
+        private String detectedIntent;
+        private double confidenceScore;
+        private Map<String, Object> extractedEntities;
+        private String sessionState;
+        private int turnCount;
+        private long processingTimeMs;
+        private byte[] audioResponse;
+        private boolean audioResponseGenerated;
+        private Double whisperConfidence;
+        private String whisperLanguage;
+        private String errorMessage;
+
+        // Getters y Setters
+        public boolean isSuccess() { return success; }
+        public void setSuccess(boolean success) { this.success = success; }
+        
+        public String getSessionId() { return sessionId; }
+        public void setSessionId(String sessionId) { this.sessionId = sessionId; }
+        
+        public String getTranscribedText() { return transcribedText; }
+        public void setTranscribedText(String transcribedText) { this.transcribedText = transcribedText; }
+        
+        public String getSystemResponse() { return systemResponse; }
+        public void setSystemResponse(String systemResponse) { this.systemResponse = systemResponse; }
+        
+        public String getDetectedIntent() { return detectedIntent; }
+        public void setDetectedIntent(String detectedIntent) { this.detectedIntent = detectedIntent; }
+        
+        public double getConfidenceScore() { return confidenceScore; }
+        public void setConfidenceScore(double confidenceScore) { this.confidenceScore = confidenceScore; }
+        
+        public Map<String, Object> getExtractedEntities() { return extractedEntities; }
+        public void setExtractedEntities(Map<String, Object> extractedEntities) { this.extractedEntities = extractedEntities; }
+        
+        public String getSessionState() { return sessionState; }
+        public void setSessionState(String sessionState) { this.sessionState = sessionState; }
+        
+        public int getTurnCount() { return turnCount; }
+        public void setTurnCount(int turnCount) { this.turnCount = turnCount; }
+        
+        public long getProcessingTimeMs() { return processingTimeMs; }
+        public void setProcessingTimeMs(long processingTimeMs) { this.processingTimeMs = processingTimeMs; }
+        
+        public byte[] getAudioResponse() { return audioResponse; }
+        public void setAudioResponse(byte[] audioResponse) { this.audioResponse = audioResponse; }
+        
+        public boolean isAudioResponseGenerated() { return audioResponseGenerated; }
+        public void setAudioResponseGenerated(boolean audioResponseGenerated) { this.audioResponseGenerated = audioResponseGenerated; }
+        
+        public Double getWhisperConfidence() { return whisperConfidence; }
+        public void setWhisperConfidence(Double whisperConfidence) { this.whisperConfidence = whisperConfidence; }
+        
+        public String getWhisperLanguage() { return whisperLanguage; }
+        public void setWhisperLanguage(String whisperLanguage) { this.whisperLanguage = whisperLanguage; }
+        
+        public String getErrorMessage() { return errorMessage; }
+        public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     }
 } 

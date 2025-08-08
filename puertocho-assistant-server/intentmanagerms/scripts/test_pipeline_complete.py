@@ -2,11 +2,18 @@
 """
 Script de pruebas para T5.3 - Pipeline Completo Audio → Transcripción → Clasificación → Respuesta
 
-Este script verifica que el pipeline completo funcione correctamente:
+⚠️  IMPORTANTE: Este script usa AudioProcessingController (endpoint técnico)
+   Para pruebas de conversación real con estado persistente, usar:
+   test_conversation_pipeline.py
+
+Este script verifica que el pipeline técnico funcione correctamente:
 1. Audio → Whisper → Transcripción
 2. Transcripción → RAG → Clasificación de Intención  
 3. Clasificación → MoE → Votación
 4. Votación → TTS → Respuesta de Audio
+
+NOTA: Este es un endpoint técnico que NO mantiene estado de conversación.
+Para conversación real con sesiones y contexto, usar ConversationManagerController.
 
 Autor: PuertoCho Assistant Team
 Fecha: 2025-01-27

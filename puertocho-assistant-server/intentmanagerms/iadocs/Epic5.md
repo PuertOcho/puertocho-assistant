@@ -422,3 +422,166 @@ curl -X POST 'http://localhost:9904/api/v1/audio/process' \
   -F 'temperature=22°C' \
   -F 'device_id=test_device'
 ```
+
+---
+
+## 🔧 **CORRECCIÓN DE ARQUITECTURA - CONVERSACIÓN REAL**
+
+### **Problema Identificado**
+El test original `test_pipeline_complete.py` usaba `AudioProcessingController` (endpoint técnico) en lugar de `ConversationManagerController` (endpoint conversacional), lo que no permitía mantener estado de conversación.
+
+### **Solución Implementada**
+
+#### **1. Extensión de ConversationManagerController**
+Se añadieron nuevos endpoints para soporte de audio en conversación:
+
+```java
+// Procesar mensaje de texto (existente)
+@PostMapping("/process")
+public ResponseEntity<ConversationResponse> processMessage(@RequestBody ConversationRequest request)
+
+// Procesar mensaje de audio con conversación
+@PostMapping(value = "/process/audio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public ResponseEntity<ConversationAudioResponse> processAudioMessage(
+    @RequestParam("audio") MultipartFile audioFile,
+    @RequestParam("sessionId") String sessionId,
+    @RequestParam("userId") String userId,
+    @RequestParam(value = "language", required = false, defaultValue = "es") String language,
+    @RequestParam(value = "generateAudioResponse", required = false, defaultValue = "true") boolean generateAudioResponse)
+
+// Procesar mensaje de audio simple (sin respuesta de audio)
+@PostMapping(value = "/process/audio/simple", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public ResponseEntity<ConversationAudioResponse> processSimpleAudioMessage(...)
+```
+
+#### **2. Nueva Clase de Respuesta**
+```java
+public static class ConversationAudioResponse {
+    private boolean success;
+    private String sessionId;
+    private String transcribedText;
+    private String systemResponse;
+    private String detectedIntent;
+    private double confidenceScore;
+    private Map<String, Object> extractedEntities;
+    private String sessionState;
+    private int turnCount;
+    private long processingTimeMs;
+    private byte[] audioResponse;
+    private boolean audioResponseGenerated;
+    private Double whisperConfidence;
+    private String whisperLanguage;
+    private String errorMessage;
+}
+```
+
+#### **3. Nuevo Script de Pruebas Conversacionales**
+Se creó `test_conversation_pipeline.py` que prueba la conversación real:
+
+```bash
+# Ejecutar pruebas de conversación real
+cd puertocho-assistant-server/intentmanagerms/scripts/
+python3 test_conversation_pipeline.py
+```
+
+### **Arquitectura Correcta**
+
+#### **Para Conversación Real (RECOMENDADO)**:
+```
+Cliente → ConversationManagerController
+├── Texto: /api/v1/conversation/process
+└── Audio: /api/v1/conversation/process/audio
+    ├── Transcribe con Whisper
+    ├── Procesa con ConversationManager
+    ├── Mantiene estado de sesión
+    └── Genera respuesta de audio (opcional)
+```
+
+#### **Para Procesamiento Técnico (CASOS ESPECÍFICOS)**:
+```
+Cliente → AudioProcessingController
+└── /api/v1/audio/process (solo para casos técnicos)
+```
+
+### **Diferencias Clave**
+
+| Aspecto | AudioProcessingController | ConversationManagerController |
+|---------|---------------------------|-------------------------------|
+| **Propósito** | Procesamiento técnico de audio | Conversación real con estado |
+| **Estado** | ❌ No mantiene conversación | ✅ Mantiene sesión y contexto |
+| **Sesiones** | ❌ No usa sesiones | ✅ Gestión completa de sesiones |
+| **Contexto** | ❌ Sin contexto conversacional | ✅ Contexto persistente |
+| **Uso Recomendado** | Casos técnicos específicos | Conversación con asistente |
+
+### **Scripts de Pruebas Actualizados**
+
+#### **test_pipeline_complete.py** (Endpoint Técnico)
+```bash
+# Prueba el pipeline técnico (sin conversación)
+python3 test_pipeline_complete.py
+```
+- ✅ Usa `AudioProcessingController`
+- ❌ No mantiene estado de conversación
+- 🔧 Para casos técnicos específicos
+
+#### **test_conversation_pipeline.py** (Conversación Real)
+```bash
+# Prueba la conversación real con estado
+python3 test_conversation_pipeline.py
+```
+- ✅ Usa `ConversationManagerController`
+- ✅ Mantiene estado de conversación
+- ✅ Prueba sesiones y continuidad
+- 🎯 **RECOMENDADO para conversación real**
+
+### **Comandos curl Actualizados**
+
+#### **Conversación con Texto**:
+```bash
+curl -X POST 'http://localhost:9904/api/v1/conversation/process' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "sessionId": "test-session-123",
+    "userId": "test-user",
+    "userMessage": "¿Qué tiempo hace en Madrid?"
+  }'
+```
+
+#### **Conversación con Audio**:
+```bash
+curl -X POST 'http://localhost:9904/api/v1/conversation/process/audio' \
+  -F 'audio=@test.wav' \
+  -F 'sessionId=test-session-123' \
+  -F 'userId=test-user' \
+  -F 'language=es' \
+  -F 'generateAudioResponse=true'
+```
+
+#### **Crear Sesión de Conversación**:
+```bash
+curl -X POST 'http://localhost:9904/api/v1/conversation/session' \
+  -d 'userId=test-user'
+```
+
+### **Estado Final del Epic 5**
+
+```
+🎉 EPIC 5 - Integración Audio y Transcripción: COMPLETADO AL 100%
+✅ T5.1 - AudioProcessingController: COMPLETADO
+✅ T5.2 - WhisperTranscriptionService: COMPLETADO  
+✅ T5.2.5 - Generación de Audio TTS: COMPLETADO
+✅ T5.3 - Pipeline Completo: COMPLETADO
+✅ T5.3.5 - Conversación Real con Audio: COMPLETADO ⭐ NUEVO
+⏳ T5.4 - Metadata Contextual: PENDIENTE (OPCIONAL)
+⏳ T5.5 - Manejo de Errores: PENDIENTE (OPCIONAL)
+
+📊 Progreso: 5/6 tareas completadas (83%) - ARQUITECTURA CORREGIDA
+🎯 OBJETIVO PRINCIPAL ALCANZADO: Pipeline conversacional completo operativo
+```
+
+### **Próximos Pasos**
+
+1. **Migrar aplicaciones cliente** para usar `ConversationManagerController`
+2. **Mantener `AudioProcessingController`** solo para casos técnicos específicos
+3. **Documentar** la diferencia entre endpoints técnicos vs conversacionales
+4. **Implementar T5.4 y T5.5** si se requieren funcionalidades adicionales
