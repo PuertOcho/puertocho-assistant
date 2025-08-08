@@ -299,6 +299,9 @@ public class AudioProcessingResult {
         @JsonProperty("processing_time_ms")
         private Long processingTimeMs;
 
+        @JsonProperty("detected_language")
+        private String detectedLanguage;
+
         public TranscriptionResult() {
         }
 
@@ -323,6 +326,9 @@ public class AudioProcessingResult {
 
         public Long getProcessingTimeMs() { return processingTimeMs; }
         public void setProcessingTimeMs(Long processingTimeMs) { this.processingTimeMs = processingTimeMs; }
+
+        public String getDetectedLanguage() { return detectedLanguage; }
+        public void setDetectedLanguage(String detectedLanguage) { this.detectedLanguage = detectedLanguage; }
 
         @Override
         public boolean equals(Object o) {

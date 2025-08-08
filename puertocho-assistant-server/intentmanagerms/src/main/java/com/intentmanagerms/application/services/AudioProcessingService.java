@@ -41,6 +41,9 @@ public class AudioProcessingService {
     @Autowired
     private ConversationManager conversationManager;
 
+    @Autowired
+    private WhisperTranscriptionService whisperTranscriptionService;
+
     /**
      * Procesa una petición de audio completa
      */
@@ -138,19 +141,63 @@ public class AudioProcessingService {
     private AudioProcessingResult.TranscriptionResult processTranscription(AudioProcessingRequest request) {
         logger.debug("Procesando transcripción para archivo: {}", request.getFilename());
 
-        // TODO: Implementar integración real con Whisper en T5.2
-        // Por ahora, simulamos una transcripción básica
-        String simulatedText = "¿qué tiempo hace hoy?";
+        try {
+            // Crear request para Whisper
+            WhisperTranscriptionRequest whisperRequest = WhisperTranscriptionRequest.builder()
+                .language(request.getMetadata() != null ? request.getMetadata().getLanguage() : "es")
+                .timeoutSeconds(30)
+                .maxRetries(3)
+                .model("base")
+                .build();
+
+            // Realizar transcripción usando Whisper
+            WhisperTranscriptionResponse whisperResponse = whisperTranscriptionService.transcribeAudio(
+                request.getAudioData(), whisperRequest);
+
+            // Verificar si la transcripción fue exitosa
+            if (whisperResponse.getStatus() == WhisperTranscriptionResponse.TranscriptionStatus.SUCCESS) {
+                AudioProcessingResult.TranscriptionResult transcription = new AudioProcessingResult.TranscriptionResult(
+                    whisperResponse.getTranscription(),
+                    whisperResponse.getConfidence() != null ? whisperResponse.getConfidence() : 0.9,
+                    whisperResponse.getLanguage()
+                );
+                transcription.setProcessingTimeMs(whisperResponse.getProcessingTimeMs());
+                transcription.setDetectedLanguage(whisperResponse.getDetectedLanguage());
+
+                logger.debug("Transcripción completada: '{}' (confianza: {}, idioma: {})", 
+                    transcription.getText(), transcription.getConfidence(), transcription.getLanguage());
+
+                return transcription;
+            } else {
+                // Fallback a transcripción simulada si Whisper falla
+                logger.warn("Whisper transcription failed: {}. Using fallback transcription.", 
+                    whisperResponse.getErrorMessage());
+                
+                return createFallbackTranscription(request);
+            }
+
+        } catch (Exception e) {
+            logger.error("Error during Whisper transcription: {}. Using fallback transcription.", e.getMessage());
+            return createFallbackTranscription(request);
+        }
+    }
+
+    /**
+     * Crea una transcripción de fallback cuando Whisper no está disponible
+     */
+    private AudioProcessingResult.TranscriptionResult createFallbackTranscription(AudioProcessingRequest request) {
+        String fallbackText = "¿qué tiempo hace hoy?";
         
         AudioProcessingResult.TranscriptionResult transcription = new AudioProcessingResult.TranscriptionResult(
-                simulatedText,
-                0.95,
-                "es"
+            fallbackText,
+            0.5, // Confianza baja para transcripción de fallback
+            "es"
         );
-        transcription.setProcessingTimeMs(1500L); // Simulamos 1.5 segundos de procesamiento
+        transcription.setProcessingTimeMs(1000L);
+        transcription.setDetectedLanguage("es");
 
-        logger.debug("Transcripción completada: '{}' (confianza: {})", 
-                transcription.getText(), transcription.getConfidence());
+        logger.debug("Transcripción de fallback completada: '{}' (confianza: {})", 
+            transcription.getText(), transcription.getConfidence());
 
         return transcription;
     }

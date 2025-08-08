@@ -1,0 +1,11 @@
+server:
+  port: ${PORT_INTENT_MANAGER}
+
+spring:
+  application:
+    name: ${INTENT_MANAGER_SERVICE}
+  config:
+    import: optional:configserver:http://${CONFIG_SERVICE:configms}:${PORT_CONFIG:8888}
+  cloud:
+    config:
+      name: intent-manager

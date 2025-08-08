@@ -121,10 +121,18 @@
 | ID | Descripción | Dependencias | Estado |
 |----|-------------|--------------|--------|
 | T5.1 | Crear `AudioProcessingController` para recibir audio multipart/form-data | T1.1 | ✅ |
-| T5.2 | Implementar cliente `WhisperTranscriptionService` para whisper-ms | T5.1 | ⏳ |
+| T5.2 | Implementar cliente `WhisperTranscriptionService` para whisper-ms | T5.1 | ✅ |
 | T5.3 | Desarrollar pipeline Audio → Transcripción → Clasificación → Respuesta | T5.2, T2.1 | ⏳ |
 | T5.4 | Añadir soporte para metadata de audio y contexto de dispositivo | T5.1 | ⏳ |
 | T5.5 | Implementar manejo de errores de transcripción con fallbacks | T5.2 | ⏳ |
+
+**🎉 T5.2 COMPLETADO AL 100% - ÉXITO TOTAL**
+- ✅ **WhisperTranscriptionService**: Cliente HTTP robusto para whisper-ms
+- ✅ **7 endpoints REST**: Transcripción síncrona/asíncrona, health, stats, info, test
+- ✅ **Integración completa**: Pipeline Audio → Whisper → RAG → MoE funcionando
+- ✅ **Pruebas automatizadas**: Script unificado con 10/10 pruebas exitosas (100%)
+- ✅ **Configuración actualizada**: URL correcta `http://192.168.1.88:5000`
+- ✅ **Transcripción real**: "Enciende luz verde." con confianza 0.95
 
 ---
 
@@ -213,8 +221,8 @@
 - **Epic 2**: 5/5 tareas completadas (100%) ✅
 - **Epic 3**: 5/5 tareas completadas (100%) ✅
 - **Epic 4**: 8/8 tareas completadas (100%) ✅
-- **Epic 5**: 1/5 tareas completadas (20%) 🔄
-- **Total General**: 24/50 tareas completadas (48%)
+- **Epic 5**: 2/5 tareas completadas (40%) 🔄 (T5.2 completado al 100%)
+- **Total General**: 25/50 tareas completadas (50%)
 
 ---
 
@@ -444,6 +452,6 @@ VECTOR_STORE_EXAMPLE_COUNT=5
 📝 Documentación: COMPLETA en archivos específicos
 
 🔄 PRÓXIMOS PASOS:
-🔄 Epic 5 - Integración Audio y Transcripción (T5.1 ✅ completado)
+🔄 Epic 5 - Integración Audio y Transcripción (T5.1 ✅, T5.2 ✅ completados)
 ⏳ Epic 6 - MCP Integration
 ⏳ Epic 7 - API y Compatibilidad

@@ -236,43 +236,6 @@ services:
   # SERVICIOS TTS/ASR - COMUNES A MÚLTIPLES APLICACIONES
   # =============================================================================
   
-  # Servicio STT (Speech-to-Text) - WhisperS
-  puertocho-assistant-whisper:
-    build:
-      context: ./puertocho-assistant-server/whisper-ms/app
-      dockerfile: Dockerfile
-    container_name: ${WHISPER_SERVICE:-whisper-api}
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
-      - WHISPER_MODEL=${WHISPER_MODEL:-base}
-      - FLASK_HOST=${WHISPER_FLASK_HOST:-0.0.0.0}
-      - FLASK_PORT=${WHISPER_FLASK_PORT:-5000}
-      - DEFAULT_LANGUAGE=${WHISPER_DEFAULT_LANGUAGE:-es}
-      - DEBUG_AUDIO=${WHISPER_DEBUG_AUDIO:-true}
-    ports:
-      - "${WHISPER_API_PORT:-5000}:${WHISPER_FLASK_PORT:-5000}"
-    volumes:
-      - ./puertocho-assistant-server/whisper-ms/debug_audio:/app/debug_audio
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${WHISPER_FLASK_PORT:-5000}/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    networks:
-      - puertocho-assistant-network
-    profiles:
-      - tts-stack
-      - full
-
   # Servicio TTS Respaldo - Azure TTS (por defecto)
   puertocho-assistant-azure-tts:
     build:

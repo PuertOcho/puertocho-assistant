@@ -1,0 +1,87 @@
+{
+  "version": "1.0.0",
+  "description": "MoE Voting System Configuration - Multiple LLMs voting for improved accuracy",
+  "voting_system": {
+    "enabled": true,
+    "max_debate_rounds": 2,
+    "consensus_threshold": 0.6,
+    "timeout_per_vote": 30,
+    "parallel_voting": true,
+    "enable_debate": true,
+    "debate_timeout": 60,
+    "debate_consensus_improvement_threshold": 0.1,
+    "llm_participants": [
+      {
+        "id": "llm_a",
+        "name": "Critical Analyzer",
+        "provider": "openai",
+        "model": "gpt-4",
+        "role": "Análisis crítico y precisión en la clasificación de intenciones",
+        "weight": 1.0,
+        "temperature": 0.3,
+        "max_tokens": 500,
+        "prompt_template": "Eres un experto en análisis crítico. Analiza esta petición del usuario y determina la intención más precisa y las entidades necesarias. Sé muy preciso y considera el contexto completo.\n\nPetición: {user_message}\nContexto: {conversation_context}\n\nResponde en formato JSON: {\"intent\": \"nombre_intencion\", \"entities\": {\"entidad\": \"valor\"}, \"confidence\": 0.0-1.0, \"reasoning\": \"breve explicación\"}"
+      },
+      {
+        "id": "llm_b", 
+        "name": "Context Specialist",
+        "provider": "anthropic",
+        "model": "claude-3-sonnet-20240229",
+        "role": "Especialista en contexto conversacional y continuidad de diálogos",
+        "weight": 1.0,
+        "temperature": 0.4,
+        "max_tokens": 500,
+        "prompt_template": "Eres un especialista en contexto conversacional. Analiza esta petición considerando especialmente el flujo de la conversación y las referencias implícitas.\n\nPetición: {user_message}\nHistorial conversacional: {conversation_history}\nContexto actual: {conversation_context}\n\nResponde en formato JSON: {\"intent\": \"nombre_intencion\", \"entities\": {\"entidad\": \"valor\"}, \"confidence\": 0.0-1.0, \"reasoning\": \"breve explicación\"}"
+      },
+      {
+        "id": "llm_c",
+        "name": "Action Pragmatist", 
+        "provider": "openai",
+        "model": "gpt-3.5-turbo",
+        "role": "Enfoque en practicidad y viabilidad de ejecución de acciones",
+        "weight": 1.0,
+        "temperature": 0.5,
+        "max_tokens": 500,
+        "prompt_template": "Eres un especialista en practicidad de acciones. Analiza esta petición enfocándote en qué tan factible es ejecutar la acción solicitada y si tiene toda la información necesaria.\n\nPetición: {user_message}\nAcciones MCP disponibles: {available_actions}\n\nResponde en formato JSON: {\"intent\": \"nombre_intencion\", \"entities\": {\"entidad\": \"valor\"}, \"confidence\": 0.0-1.0, \"reasoning\": \"breve explicación\"}"
+      }
+    ],
+    "consensus_rules": {
+      "unanimous_required": false,
+      "majority_threshold": 2,
+      "confidence_weight": 0.3,
+      "reasoning_similarity_weight": 0.2,
+      "entity_agreement_weight": 0.3,
+      "intent_agreement_weight": 0.5
+    },
+    "fallback_strategy": {
+      "on_no_consensus": "use_highest_confidence",
+      "on_timeout": "use_primary_llm",
+      "on_error": "use_single_llm_mode",
+      "primary_llm_id": "llm_a"
+    }
+  },
+  "single_llm_mode": {
+    "provider": "openai",
+    "model": "gpt-4",
+    "temperature": 0.7,
+    "max_tokens": 800,
+    "prompt_template": "Eres un asistente inteligente especializado en clasificación de intenciones y gestión conversacional. Analiza la petición del usuario y determina la intención y entidades necesarias.\n\nPetición: {user_message}\nContexto: {conversation_context}\nHistorial: {conversation_history}\n\nPara peticiones complejas que requieren múltiples acciones, identifica todas las subtareas necesarias.\n\nResponde en formato JSON: {\"intent\": \"nombre_intencion\", \"entities\": {\"entidad\": \"valor\"}, \"confidence\": 0.0-1.0, \"subtasks\": [{\"action\": \"accion\", \"entities\": {}}], \"reasoning\": \"explicación\"}"
+  },
+  "response_formats": {
+    "vote_response": {
+      "intent": "string",
+      "entities": "object", 
+      "confidence": "number",
+      "reasoning": "string",
+      "subtasks": "array"
+    },
+    "consensus_response": {
+      "final_intent": "string",
+      "final_entities": "object",
+      "consensus_confidence": "number",
+      "participating_votes": "number",
+      "agreement_level": "string",
+      "subtasks": "array"
+    }
+  }
+}

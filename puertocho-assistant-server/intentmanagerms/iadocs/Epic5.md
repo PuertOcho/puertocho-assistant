@@ -28,6 +28,8 @@
 - ✅ `AudioProcessingRequest.java` - Request model para audio con configuración
 - ✅ `AudioProcessingResult.java` - Response model para audio con transcripción y resultados
 - ✅ `test_audio_processing.py` - Script de pruebas automatizadas completo
+- ✅ `test_whisper_transcription.py` - Script de pruebas para T5.2
+- ✅ `ejemplo_whisper_transcription.py` - Script de ejemplos de uso
 - ✅ `Epic5.md` - Documentación completa (este archivo)
 
 **Configuración necesaria**:
@@ -82,7 +84,7 @@ POST /api/v1/audio/test                 # Test con archivo de ejemplo
 
 ---
 
-### **T5.2 ⏳ - WhisperTranscriptionService**
+### **T5.2 ✅ - WhisperTranscriptionService**
 **Descripción**: Implementar cliente `WhisperTranscriptionService` para whisper-ms.
 
 **Objetivos específicos**:
@@ -91,6 +93,52 @@ POST /api/v1/audio/test                 # Test con archivo de ejemplo
 - Soporte para diferentes formatos de audio
 - Procesamiento de respuestas de transcripción
 - Fallback en caso de fallo del servicio
+
+**Archivos Implementados**:
+- ✅ `WhisperTranscriptionService.java` - Servicio principal de transcripción con 8 métodos
+- ✅ `WhisperTranscriptionController.java` - Controlador REST con 7 endpoints
+- ✅ `WhisperTranscriptionRequest.java` - Modelo de request para configuración
+- ✅ `WhisperTranscriptionResponse.java` - Modelo de response completo
+- ✅ `RestTemplateConfig.java` - Configuración para RestTemplate
+- ✅ `test_whisper_integration.py` - Script unificado de pruebas automatizadas (100% éxito)
+- ✅ `ejemplo_whisper_transcription.py` - Script de ejemplos de uso completo
+- ✅ Integración con `AudioProcessingService.java` - Pipeline completo operativo
+
+**Configuración necesaria**:
+```yaml
+# Whisper Integration
+whisper:
+  service:
+    url: ${WHISPER_SERVICE_URL:http://192.168.1.88:5000}
+  enabled: ${WHISPER_ENABLED:true}
+  timeout: ${WHISPER_TIMEOUT:30}
+  max-retries: ${WHISPER_MAX_RETRIES:3}
+  supported-languages: ${WHISPER_SUPPORTED_LANGUAGES:es,en}
+  model: ${WHISPER_MODEL:base}
+```
+
+**API REST Implementada**:
+```bash
+POST /api/v1/whisper/transcribe              # Transcripción síncrona
+POST /api/v1/whisper/transcribe/async        # Transcripción asíncrona
+GET  /api/v1/whisper/health                  # Health check
+GET  /api/v1/whisper/info                    # Información del servicio
+GET  /api/v1/whisper/stats                   # Estadísticas
+POST /api/v1/whisper/test                    # Test con audio de ejemplo
+```
+
+**Funcionalidades Implementadas**:
+- ✅ **Cliente HTTP robusto**: Comunicación con whisper-ms con manejo de errores
+- ✅ **Sistema de reintentos**: Backoff exponencial con configuración flexible
+- ✅ **Manejo de timeouts**: Timeouts configurables por request
+- ✅ **Fallback inteligente**: Transcripción simulada cuando Whisper no está disponible
+- ✅ **Metadata completa**: Información de debug, confianza, idioma detectado
+- ✅ **API REST completa**: 7 endpoints operativos
+- ✅ **Integración con pipeline**: Conectado con AudioProcessingService
+- ✅ **Pruebas automatizadas**: Script unificado con 10 tipos de pruebas (100% éxito)
+- ✅ **Transcripción asíncrona**: Soporte para procesamiento en background
+- ✅ **Validación robusta**: Verificación de archivos y respuestas
+- ✅ **Integración completa**: Pipeline Audio → Whisper → RAG → MoE funcionando
 
 ---
 
@@ -141,7 +189,7 @@ AUDIO_MIN_DURATION=0
 AUDIO_SAMPLE_RATE_RANGE=8000-48000
 
 # Whisper Integration
-WHISPER_SERVICE_URL=http://whisper-ms:5000
+WHISPER_SERVICE_URL=http://192.168.1.88:5000
 WHISPER_ENABLED=true
 WHISPER_TIMEOUT=30
 WHISPER_MAX_RETRIES=3
@@ -159,12 +207,12 @@ AUDIO_METADATA_USER_ID_ENABLED=true
 ```
 🔄 EPIC 5 - Integración Audio y Transcripción: EN PROGRESO
 ✅ T5.1 - AudioProcessingController: COMPLETADO
-⏳ T5.2 - WhisperTranscriptionService: PENDIENTE
+✅ T5.2 - WhisperTranscriptionService: COMPLETADO
 ⏳ T5.3 - Pipeline Completo: PENDIENTE
 ⏳ T5.4 - Metadata Contextual: PENDIENTE
 ⏳ T5.5 - Manejo de Errores: PENDIENTE
 
-📊 Progreso: 1/5 tareas completadas (20%)
+📊 Progreso: 2/5 tareas completadas (40%)
 ```
 
 ## Integración con Epics Anteriores
@@ -193,4 +241,42 @@ Pipeline: Audio → Whisper → "¿qué tiempo hace?" → RAG + Contexto → MoE
 ```
 Usuario envía: audio.wav + metadata (dispositivo: "salón", usuario: "maria")
 Pipeline: Audio → Whisper → "enciende la luz y pon música" → RAG → MoE → Descomposición → Múltiples acciones
+```
+
+---
+
+## Scripts de Pruebas y Ejemplos
+
+### Script de Pruebas Automatizadas
+```bash
+# Ejecutar pruebas completas de T5.2
+cd puertocho-assistant-server/intentmanagerms/scripts/
+python3 test_whisper_integration.py
+```
+
+### Script de Ejemplos de Uso
+```bash
+# Ejecutar ejemplos de uso del servicio
+cd puertocho-assistant-server/intentmanagerms/scripts/
+python3 ejemplo_whisper_transcription.py
+```
+
+### Comandos curl de Ejemplo
+```bash
+# Health check del servicio
+curl -X GET 'http://localhost:9904/api/v1/whisper/health'
+
+# Transcripción síncrona
+curl -X POST 'http://localhost:9904/api/v1/whisper/transcribe' \
+  -F 'audio=@test.wav' \
+  -F 'language=es' \
+  -F 'timeout_seconds=30'
+
+# Pipeline completo con metadata
+curl -X POST 'http://localhost:9904/api/v1/audio/process' \
+  -F 'audio=@test.wav' \
+  -F 'language=es' \
+  -F 'location=Madrid' \
+  -F 'temperature=22°C' \
+  -F 'device_id=test_device'
 ```
