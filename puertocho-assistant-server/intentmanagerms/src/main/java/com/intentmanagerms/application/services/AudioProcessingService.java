@@ -44,6 +44,9 @@ public class AudioProcessingService {
     @Autowired
     private WhisperTranscriptionService whisperTranscriptionService;
 
+    @Autowired
+    private TtsGenerationService ttsGenerationService;
+
     /**
      * Procesa una petición de audio completa
      */
@@ -278,16 +281,35 @@ public class AudioProcessingService {
                                                                AudioProcessingRequest request) {
         logger.debug("Generando respuesta para intención: {}", intentClassification.getIntentId());
 
-        // TODO: Implementar generación de respuesta de audio en T5.3
-        // Por ahora, generamos solo respuesta de texto
-        String textResponse = generateTextResponse(intentClassification, moeVoting);
+        long startTime = System.currentTimeMillis();
 
-        AudioProcessingResult.AudioResponse response = new AudioProcessingResult.AudioResponse(textResponse);
-        response.setGenerationTimeMs(500L); // Simulamos 0.5 segundos de generación
+        try {
+            // 1. Generar respuesta de texto
+            String textResponse = generateTextResponse(intentClassification, moeVoting);
 
-        logger.debug("Respuesta generada: '{}'", response.getTextResponse());
+            // 2. Generar audio TTS para la respuesta
+            byte[] audioResponse = generateAudioResponse(textResponse, request);
 
-        return response;
+            // 3. Crear respuesta completa
+            AudioProcessingResult.AudioResponse response = new AudioProcessingResult.AudioResponse(textResponse);
+            response.setAudioResponse(audioResponse);
+            response.setGenerationTimeMs(System.currentTimeMillis() - startTime);
+
+            logger.debug("Respuesta generada: '{}' con audio de {} bytes", 
+                response.getTextResponse(), audioResponse != null ? audioResponse.length : 0);
+
+            return response;
+
+        } catch (Exception e) {
+            logger.error("Error generando respuesta de audio: {}", e.getMessage(), e);
+            
+            // Fallback: solo respuesta de texto sin audio
+            String textResponse = generateTextResponse(intentClassification, moeVoting);
+            AudioProcessingResult.AudioResponse response = new AudioProcessingResult.AudioResponse(textResponse);
+            response.setGenerationTimeMs(System.currentTimeMillis() - startTime);
+            
+            return response;
+        }
     }
 
     /**
@@ -311,6 +333,48 @@ public class AudioProcessingService {
             default:
                 return "Entiendo tu petición. Estoy procesando la información para ayudarte mejor.";
         }
+    }
+
+    /**
+     * Genera audio TTS para la respuesta de texto
+     */
+    private byte[] generateAudioResponse(String textResponse, AudioProcessingRequest request) {
+        logger.debug("Generando audio TTS para: '{}'", textResponse);
+
+        try {
+            // Crear request para TTS
+            TtsGenerationRequest ttsRequest = new TtsGenerationRequest(textResponse);
+            ttsRequest.setLanguage(request.getMetadata() != null ? request.getMetadata().getLanguage() : "es");
+            ttsRequest.setVoice("Abril"); // Voz por defecto
+            ttsRequest.setSpeed(1.0);
+            ttsRequest.setTimeoutSeconds(30);
+
+            // Generar audio usando TTS
+            TtsGenerationResponse ttsResponse = ttsGenerationService.generateAudio(ttsRequest);
+
+            if (ttsResponse.isSuccess() && ttsResponse.getAudioData() != null) {
+                logger.debug("Audio TTS generado exitosamente: {} bytes", ttsResponse.getAudioData().length);
+                return ttsResponse.getAudioData();
+            } else {
+                logger.warn("TTS generation failed: {}. Using fallback.", ttsResponse.getErrorMessage());
+                return generateFallbackAudio(textResponse);
+            }
+
+        } catch (Exception e) {
+            logger.error("Error en generación TTS: {}. Using fallback.", e.getMessage());
+            return generateFallbackAudio(textResponse);
+        }
+    }
+
+    /**
+     * Genera audio de fallback cuando TTS no está disponible
+     */
+    private byte[] generateFallbackAudio(String textResponse) {
+        logger.debug("Generando audio de fallback para: '{}'", textResponse);
+        
+        // Por ahora, retornamos un array vacío como fallback
+        // En una implementación real, podríamos usar un TTS local o sintetizador básico
+        return new byte[0];
     }
 
     /**
