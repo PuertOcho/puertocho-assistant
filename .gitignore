@@ -21,6 +21,10 @@ env/
 venv/
 .env
 
+# Archivos de configuración con claves
+env
+*.env
+
 # Docker
 .dockerignore 
 .vscode
