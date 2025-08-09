@@ -148,13 +148,22 @@
 
 ## Epic 6 – MCP (Model Context Protocol) Integration
 
+**📋 Documentación Completa**: [Epic6.md](puertocho-assistant-server/intentmanagerms/iadocs/Epic6.md)
+
 | ID | Descripción | Dependencias | Estado |
 |----|-------------|--------------|--------|
-| T6.1 | Crear `McpClientService` para comunicación con servicios MCP externos | T1.5 | ⏳ |
-| T6.2 | Implementar `TaigaMcpClient` reutilizando taiga-mcp-ms existente | T6.1 | ⏳ |
-| T6.3 | Desarrollar `WeatherMcpClient` para consultas meteorológicas | T6.1 | ⏳ |
-| T6.4 | Crear `SystemMcpClient` para acciones de sistema (hora, alarmas, etc.) | T6.1 | ⏳ |
-| T6.5 | Añadir configuración JSON dinámica para nuevos clientes MCP | T6.1 | ⏳ |
+| T6.1 | Rediseñar `McpClientService` → `McpRouter` genérico con `McpRegistry` (JSON + hot-reload) | T1.5 | ⏳ |
+| T6.2 | Definir contratos unificados `McpRequest`/`McpResponse` (texto/imagen/audio, streaming opcional) | T6.1 | ⏳ |
+| T6.3 | Implementar interfaz `McpTransport` y drivers iniciales (`http`, `stdio`) | T6.1 | ⏳ |
+| T6.4 | Crear `McpActionInvoker`: resolución por acción, validación JSON Schema, normalización de respuesta | T6.2, T6.3 | ⏳ |
+| T6.5 | Diseñar `mcp_registry.json` con `input_schema`/`output_schema`, auth, timeouts, retries | T6.1 | ⏳ |
+| T6.6 | Observabilidad: métricas por acción, trazas distribuidas, auditoría y coste | T6.4 | ⏳ |
+| T6.7 | Robustez: timeouts por acción, reintentos idempotentes, circuit breaker por plugin | T6.4 | ⏳ |
+| T6.8 | Seguridad: secretos por variables de entorno, allowlist de acciones, redacción de PII en logs | T6.4 | ⏳ |
+| T6.9 | Tests: contrato (schemas) e integración con 2 plugins (`weather`, `system`) | T6.4 | ⏳ |
+| T6.10 | Integración con orquestador: `TaskOrchestrator` consume `McpActionInvoker` | T4.6, T6.4 | ⏳ |
+| T6.11 | CLI/endpoint de diagnóstico: listar/validar configuración y probar acciones | T6.4 | ⏳ |
+| T6.12 | Documentación completa de Epic 6 con guías y ejemplos | Todas | ⏳ |
 
 ---
 
