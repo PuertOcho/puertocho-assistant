@@ -246,9 +246,22 @@ public class TtsGenerationService {
             Double speed = response.get("speed") != null ? 
                     Double.valueOf(response.get("speed").toString()) : null;
             
-            // Por ahora, no tenemos audio_data en la respuesta JSON, solo metadata
-            // En una implementación real, necesitaríamos obtener el archivo de audio
-            byte[] audioData = new byte[0]; // Placeholder
+            // Extraer audio en Base64 de la respuesta
+            byte[] audioData = new byte[0]; // Por defecto vacío
+            
+            if (response.containsKey("audio_data")) {
+                try {
+                    String audioBase64 = (String) response.get("audio_data");
+                    if (audioBase64 != null && !audioBase64.isEmpty()) {
+                        // Decodificar Base64 a bytes
+                        java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
+                        audioData = decoder.decode(audioBase64);
+                        logger.debug("Audio decodificado desde Base64: {} bytes", audioData.length);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Error decodificando audio Base64: {}", e.getMessage());
+                }
+            }
             
             return TtsGenerationResponse.success(
                 request.getRequestId(), text, language, voice, provider, 
