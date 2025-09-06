@@ -265,6 +265,13 @@ public class ConversationSession {
         return this.metadata != null ? this.metadata.get(key) : null;
     }
 
+    public void removeMetadata(String key) {
+        if (this.metadata != null) {
+            this.metadata.remove(key);
+            this.updateActivity();
+        }
+    }
+
     @Override
     public String toString() {
         return "ConversationSession{" +

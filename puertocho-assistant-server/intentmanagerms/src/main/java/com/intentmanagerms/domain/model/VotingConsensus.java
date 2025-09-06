@@ -10,6 +10,7 @@ import java.util.Map;
 public class VotingConsensus {
     private String consensusId;
     private String finalIntent;
+    private String finalResponse;
     private Map<String, Object> finalEntities;
     private Double consensusConfidence;
     private Integer participatingVotes;
@@ -49,6 +50,14 @@ public class VotingConsensus {
 
     public void setFinalIntent(String finalIntent) {
         this.finalIntent = finalIntent;
+    }
+
+    public String getFinalResponse() {
+        return finalResponse;
+    }
+
+    public void setFinalResponse(String finalResponse) {
+        this.finalResponse = finalResponse;
     }
 
     public Map<String, Object> getFinalEntities() {

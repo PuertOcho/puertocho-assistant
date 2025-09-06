@@ -79,6 +79,52 @@ public class ConversationManager {
         String userMessage = request.getUserMessage();
 
         logger.info("Procesando mensaje para sesión {}: {}", sessionId, userMessage);
+        
+        // Debug información del contexto de la petición
+        if (request.getMetadata() != null && !request.getMetadata().isEmpty()) {
+            logger.info("DEBUG - Metadata presente en la petición para sesión {}", sessionId);
+            
+            Object mcpContext = request.getMetadata().get("mcpContext");
+            if (mcpContext != null) {
+                try {
+                    Map<String, Object> mcp = (Map<String, Object>) mcpContext;
+                    logger.info("DEBUG - MCP Context: selectedMcp={}, buttonId={}, timestamp={}", 
+                              mcp.get("selectedMcp"), mcp.get("buttonId"), mcp.get("timestamp"));
+                } catch (Exception e) {
+                    logger.warn("DEBUG - Error parsing MCP context: {}", e.getMessage());
+                }
+            } else {
+                logger.info("DEBUG - No MCP context in request metadata");
+            }
+            
+            Object targetContext = request.getMetadata().get("targetContext");
+            if (targetContext != null) {
+                try {
+                    Map<String, Object> target = (Map<String, Object>) targetContext;
+                    logger.info("DEBUG - Target Context: selectedTarget={}, isPersistent={}, timestamp={}", 
+                              target.get("selectedTarget"), target.get("isPersistent"), target.get("timestamp"));
+                } catch (Exception e) {
+                    logger.warn("DEBUG - Error parsing Target context: {}", e.getMessage());
+                }
+            } else {
+                logger.info("DEBUG - No Target context in request metadata");
+            }
+            
+            Object interactionContext = request.getMetadata().get("interactionContext");
+            if (interactionContext != null) {
+                try {
+                    Map<String, Object> interaction = (Map<String, Object>) interactionContext;
+                    logger.info("DEBUG - Interaction Context: source={}, timestamp={}", 
+                              interaction.get("source"), interaction.get("timestamp"));
+                } catch (Exception e) {
+                    logger.warn("DEBUG - Error parsing Interaction context: {}", e.getMessage());
+                }
+            } else {
+                logger.info("DEBUG - No Interaction context in request metadata");
+            }
+        } else {
+            logger.info("DEBUG - No metadata presente en la petición para sesión {}", sessionId);
+        }
 
         try {
             // Obtener o crear sesión
@@ -93,12 +139,29 @@ public class ConversationManager {
             ConversationTurn turn = new ConversationTurn(userMessage);
             turn.setTurnNumber(session.getTurnCount() + 1);
 
-            // Clasificar intención usando RAG
+            // ✅ PROCESAR CONTEXTO MCP Y TARGET ENRIQUECIDO
+            Map<String, Object> enrichedContext = processEnrichedContext(request.getMetadata(), session);
+            
+            // ✅ MANEJAR RESPUESTAS DE CLARIFICACIÓN PRIMERO
+            if (request.getMetadata() != null && request.getMetadata().containsKey("clarificationContext")) {
+                return processClarificationResponse(session, request.getMetadata(), userMessage, turn);
+            }
+            
+            // ✅ DETECTAR Y MANEJAR CONFLICTOS DE CONTEXTO (solo si no es clarificación)
+            ConflictResolution conflictCheck = detectContextConflicts(userMessage, enrichedContext);
+            if (conflictCheck.hasConflict()) {
+                return createConflictResponse(session, conflictCheck, turn);
+            }
+
+            // Clasificar intención usando RAG con contexto enriquecido
             IntentClassificationRequest classificationRequest = new IntentClassificationRequest();
             classificationRequest.setText(userMessage);
             classificationRequest.setSessionId(sessionId);
             classificationRequest.setUserId(userId);
-            classificationRequest.setContextMetadata(buildContextMetadata(session));
+            // ✅ COMBINAR CONTEXTO TRADICIONAL CON CONTEXTO ENRIQUECIDO
+            Map<String, Object> combinedMetadata = buildContextMetadata(session);
+            combinedMetadata.putAll(enrichedContext);
+            classificationRequest.setContextMetadata(combinedMetadata);
 
             IntentClassificationResult classificationResult = ragIntentClassifier.classifyIntent(classificationRequest);
             
@@ -107,12 +170,14 @@ public class ConversationManager {
             turn.setConfidenceScore(classificationResult.getConfidenceScore() != null ? classificationResult.getConfidenceScore() : 0.0);
             turn.setExtractedEntities(classificationResult.getDetectedEntities());
 
-            // Usar sistema de votación MoE si está habilitado
-            // TODO: Implementar verificación de MoE habilitado cuando esté disponible
+            // ✅ USAR SISTEMA DE VOTACIÓN CON CONTEXTO ENRIQUECIDO
+            Map<String, Object> conversationContext = buildConversationContext(session);
+            conversationContext.putAll(enrichedContext);
+            
             VotingRound votingRound = llmVotingService.executeVotingRound(
                 sessionId, 
                 userMessage, 
-                buildConversationContext(session),
+                conversationContext,
                 buildConversationHistory(session)
             );
             
@@ -141,6 +206,14 @@ public class ConversationManager {
 
             logger.info("Mensaje procesado exitosamente para sesión {}: intent={}, confidence={}", 
                 sessionId, turn.getDetectedIntent(), turn.getConfidenceScore());
+            
+            // Debug final: resumen del contexto procesado
+            Object mcpCtx = session.getMetadata("mcpContext");
+            Object targetCtx = session.getMetadata("persistent_target");
+            logger.debug("DEBUG - Final session context: MCP={}, Target={}, State={}", 
+                        mcpCtx != null ? ((Map<String, Object>) mcpCtx).get("selectedMcp") : "none",
+                        targetCtx != null ? ((Map<String, Object>) targetCtx).get("label") : "none",
+                        session.getState());
 
             return createSuccessResponse(session, turn, systemResponse);
 
@@ -613,6 +686,300 @@ public class ConversationManager {
     private void updateStatistics(long startTime) {
         totalTurnsProcessed++;
         totalProcessingTimeMs += (System.currentTimeMillis() - startTime);
+    }
+
+    // ✅ NUEVAS FUNCIONES PARA PROCESAMIENTO DE CONTEXTO MCP/TARGET
+
+    /**
+     * Procesa el contexto enriquecido de MCP y Target desde la metadata
+     */
+    private Map<String, Object> processEnrichedContext(Map<String, Object> metadata, ConversationSession session) {
+        Map<String, Object> enrichedContext = new HashMap<>();
+        
+        if (metadata != null) {
+            // Procesar contexto MCP
+            Object mcpContext = metadata.get("mcpContext");
+            if (mcpContext instanceof Map) {
+                Map<String, Object> mcp = (Map<String, Object>) mcpContext;
+                enrichedContext.put("available_mcp_actions", mcp.get("availableActions"));
+                enrichedContext.put("selected_mcp_action", mcp);  // ✅ Guardar objeto completo
+                enrichedContext.put("mcp_matrix_config", mcp.get("matrixConfig"));
+                
+                // IMPORTANTE: Marcar que hay contexto MCP activo
+                enrichedContext.put("mcp_context_active", true);
+                
+                // ✅ GUARDAR CONTEXTO MCP EN SESIÓN PARA RECUPERACIÓN POSTERIOR
+                session.updateMetadata("mcpContext", mcp);
+                
+                logger.info("Processing MCP context: selectedMcp={}, buttonId={}", 
+                           mcp.get("selectedMcp"), mcp.get("buttonId"));
+                logger.debug("DEBUG - MCP Context full details: availableActions={}, matrixConfig={}", 
+                           mcp.get("availableActions"), mcp.get("matrixConfig"));
+            }
+            
+            // Procesar contexto de target
+            Object targetContext = metadata.get("targetContext");
+            if (targetContext instanceof Map) {
+                Map<String, Object> target = (Map<String, Object>) targetContext;
+                enrichedContext.put("selected_target", target.get("selectedTarget"));
+                enrichedContext.put("available_targets", target.get("availableTargets"));
+                
+                // ✅ PERSISTIR TARGET EN SESIÓN
+                Map<String, Object> selectedTarget = (Map<String, Object>) target.get("selectedTarget");
+                if (selectedTarget != null) {
+                    session.updateMetadata("persistent_target", selectedTarget);
+                    logger.info("Target persisted in session: {} ({})", 
+                               selectedTarget.get("label"), selectedTarget.get("id"));
+                    logger.debug("DEBUG - Target full details: isPersistent={}, availableTargets={}", 
+                               target.get("isPersistent"), target.get("availableTargets"));
+                }
+            } else {
+                // ✅ RECUPERAR TARGET PERSISTENTE SI NO SE ENVÍA
+                Object persistentTarget = session.getMetadata("persistent_target");
+                if (persistentTarget != null) {
+                    enrichedContext.put("selected_target", persistentTarget);
+                    logger.info("Using persistent target from session: {}", 
+                               ((Map<String, Object>) persistentTarget).get("label"));
+                }
+            }
+            
+            // Procesar contexto de interacción
+            Object interactionContext = metadata.get("interactionContext");
+            if (interactionContext instanceof Map) {
+                Map<String, Object> interaction = (Map<String, Object>) interactionContext;
+                enrichedContext.put("interaction_source", interaction.get("source"));
+                enrichedContext.put("triggered_action", interaction.get("triggeredAction"));
+                
+                logger.info("Processing interaction context: source={}, action={}", 
+                           interaction.get("source"), interaction.get("triggeredAction"));
+            }
+        }
+        
+        return enrichedContext;
+    }
+
+    /**
+     * Detecta conflictos entre el contexto MCP seleccionado y el comando de voz
+     */
+    private ConflictResolution detectContextConflicts(String userMessage, Map<String, Object> enrichedContext) {
+        ConflictResolution resolution = new ConflictResolution();
+        resolution.setHasConflict(false);
+        
+        // Verificar si hay contexto MCP activo
+        boolean mcpActive = Boolean.TRUE.equals(enrichedContext.get("mcp_context_active"));
+        Object selectedMcpAction = enrichedContext.get("selected_mcp_action");
+        
+        if (mcpActive && selectedMcpAction instanceof Map) {
+            Map<String, Object> mcpAction = (Map<String, Object>) selectedMcpAction;
+            String selectedMcp = (String) mcpAction.get("selectedMcp");  // ✅ Usar selectedMcp
+            String buttonId = (String) mcpAction.get("buttonId");
+            
+            // ✅ DETECTAR CONFLICTOS ESPECÍFICOS
+            if (isGenericSystemCommand(userMessage) && !isCompatibleWithMcp(userMessage, selectedMcp)) {
+                resolution.setHasConflict(true);
+                resolution.setConflictType("mcp_system_conflict");
+                resolution.setClarificationMessage(
+                    String.format("Tienes seleccionado el botón %s (%s), pero tu comando '%s' parece ser general. " +
+                                 "¿Quieres ejecutar '%s' en el contexto de %s o es un comando independiente?",
+                                 buttonId != null ? buttonId : "MCP", selectedMcp, userMessage, userMessage, selectedMcp)
+                );
+                
+                logger.info("Conflict detected: MCP '{}' vs command '{}'", selectedMcp, userMessage);
+                logger.debug("DEBUG - Conflict details: buttonId={}, mcpAction={}, enrichedContext={}", 
+                           buttonId, selectedMcpAction, enrichedContext.keySet());
+            }
+        }
+        
+        return resolution;
+    }
+
+    /**
+     * Verifica si un mensaje es un comando genérico del sistema
+     */
+    private boolean isGenericSystemCommand(String userMessage) {
+        String lowerMessage = userMessage.toLowerCase().trim();
+        String[] genericCommands = {"apagar", "reiniciar", "parar", "detener", "cerrar", "salir", "terminar"};
+        
+        for (String cmd : genericCommands) {
+            if (lowerMessage.contains(cmd)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Verifica si un comando es compatible con el MCP seleccionado
+     */
+    private boolean isCompatibleWithMcp(String userMessage, String mcpActionType) {
+        String lowerMessage = userMessage.toLowerCase().trim();
+        
+        switch (mcpActionType) {
+            case "docker_mcp":
+                return lowerMessage.contains("contenedor") || lowerMessage.contains("container") ||
+                       lowerMessage.contains("imagen") || lowerMessage.contains("docker") ||
+                       lowerMessage.contains("mostrar") || lowerMessage.contains("listar");
+            case "browser_mcp":
+                return lowerMessage.contains("página") || lowerMessage.contains("web") ||
+                       lowerMessage.contains("navegador") || lowerMessage.contains("buscar");
+            case "google_maps_mcp":
+                return lowerMessage.contains("mapa") || lowerMessage.contains("navegación") ||
+                       lowerMessage.contains("dirección") || lowerMessage.contains("ubicación");
+            case "home_mcp":
+                return lowerMessage.contains("casa") || lowerMessage.contains("hogar") ||
+                       lowerMessage.contains("domótica") || lowerMessage.contains("temperatura");
+            // Agregar más compatibilidades según MCPs disponibles
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Crea una respuesta de conflicto que requiere aclaración del usuario
+     */
+    private ConversationResponse createConflictResponse(ConversationSession session, ConflictResolution conflict, ConversationTurn turn) {
+        ConversationResponse response = new ConversationResponse();
+        response.setSuccess(true);
+        response.setSessionId(session.getSessionId());
+        response.setSystemResponse(conflict.getClarificationMessage());
+        response.setDetectedIntent("clarification_needed");
+        response.setConfidenceScore(1.0); // Alta confianza en la necesidad de aclaración
+        response.setSessionState(ConversationState.WAITING_CLARIFICATION.getCode());
+        response.setTurnCount(session.getTurnCount());
+        response.setProcessingTimeMs(turn.getProcessingTimeMs());
+        
+        // Actualizar estado de sesión para esperar aclaración
+        session.setState(ConversationState.WAITING_CLARIFICATION);
+        session.updateMetadata("conflict_type", conflict.getConflictType());
+        session.updateMetadata("awaiting_clarification", true);
+        
+        // ✅ GUARDAR CONTEXTO ORIGINAL DEL CONFLICTO PARA RECUPERAR DESPUÉS
+        session.updateMetadata("conflict_original_message", turn.getUserMessage());
+        if (session.getMetadata("mcpContext") != null) {
+            session.updateMetadata("last_mcp_context", session.getMetadata("mcpContext"));
+        }
+        
+        // Guardar el turno en el historial
+        session.addTurn(turn);
+        persistSession(session);
+        
+        logger.info("Conflict response created for session {}: {}", session.getSessionId(), conflict.getConflictType());
+        
+        return response;
+    }
+
+    /**
+     * ✅ PROCESA RESPUESTAS DE CLARIFICACIÓN DE CONFLICTOS MCP/TARGET
+     * Maneja cuando el usuario responde a una solicitud de clarificación de conflicto
+     */
+    private ConversationResponse processClarificationResponse(ConversationSession session, 
+                                                            Map<String, Object> metadata, 
+                                                            String userResponse, 
+                                                            ConversationTurn turn) {
+        
+        Map<String, Object> clarificationData = (Map<String, Object>) metadata.get("clarificationContext");
+        String selectedOption = (String) clarificationData.get("selectedOption");
+        
+        logger.info("Processing clarification response for session {}: option={}", 
+                   session.getSessionId(), selectedOption);
+        logger.debug("DEBUG - Clarification context full details: conflictId={}, isResponse={}", 
+                   clarificationData.get("conflictId"), clarificationData.get("isResponse"));
+        
+        // Restaurar estado normal de la sesión
+        session.setState(ConversationState.PROCESSING);
+        session.removeMetadata("awaiting_clarification");
+        session.removeMetadata("conflict_type");
+        
+        // Construir contexto basado en la selección del usuario
+        Map<String, Object> resolvedContext = new HashMap<>();
+        
+        if ("mcp".equals(selectedOption)) {
+            // Usuario eligió usar el contexto MCP
+            Object mcpContext = session.getMetadata("last_mcp_context");
+            if (mcpContext != null) {
+                resolvedContext.put("mcpContext", mcpContext);
+                resolvedContext.put("mcp_context_active", true);
+                logger.info("Resolved conflict: Using MCP context for session {}", session.getSessionId());
+                logger.debug("DEBUG - MCP context restored: {}", mcpContext);
+            }
+        } else if ("voice".equals(selectedOption)) {
+            // Usuario eligió comando independiente (sin MCP)
+            resolvedContext.put("independent_command", true);
+            logger.info("Resolved conflict: Using independent voice command for session {}", session.getSessionId());
+            logger.debug("DEBUG - Independent command mode activated, no MCP context");
+        }
+        
+        // Recuperar el mensaje original que causó el conflicto
+        String originalMessage = (String) session.getMetadata("conflict_original_message");
+        if (originalMessage != null) {
+            turn.setUserMessage(originalMessage);
+        }
+        
+        // Construir contexto combinado
+        Map<String, Object> conversationContext = buildConversationContext(session);
+        conversationContext.putAll(resolvedContext);
+        
+        // Procesar con el sistema de votación usando el contexto resuelto
+        VotingRound votingRound = llmVotingService.executeVotingRound(
+            session.getSessionId(), 
+            originalMessage != null ? originalMessage : userResponse, 
+            conversationContext,
+            buildConversationHistory(session)
+        );
+        
+        // Generar respuesta
+        ConversationResponse response = new ConversationResponse();
+        response.setSuccess(true);
+        response.setSessionId(session.getSessionId());
+        
+        if (votingRound.getConsensus() != null) {
+            response.setSystemResponse(votingRound.getConsensus().getFinalResponse());
+            response.setDetectedIntent(votingRound.getConsensus().getFinalIntent());
+            response.setConfidenceScore(votingRound.getConsensus().getConsensusConfidence());
+            
+            // Actualizar turno con resultados
+            turn.setDetectedIntent(votingRound.getConsensus().getFinalIntent());
+            turn.setConfidenceScore(votingRound.getConsensus().getConsensusConfidence());
+            turn.setSystemResponse(votingRound.getConsensus().getFinalResponse());
+        } else {
+            response.setSystemResponse("Clarificación procesada pero no se pudo generar respuesta definitiva.");
+            response.setDetectedIntent("clarification_processed");
+            response.setConfidenceScore(0.5);
+        }
+        
+        response.setSessionState(ConversationState.PROCESSING.getCode());
+        response.setTurnCount(session.getTurnCount() + 1);
+        
+        // Limpiar metadata temporal del conflicto
+        session.removeMetadata("conflict_original_message");
+        session.removeMetadata("last_mcp_context");
+        
+        // Añadir turno y persistir
+        session.addTurn(turn);
+        persistSession(session);
+        
+        logger.info("Clarification processed successfully for session {}: final_intent={}", 
+                   session.getSessionId(), response.getDetectedIntent());
+        
+        return response;
+    }
+
+    /**
+     * Clase para manejo de resolución de conflictos
+     */
+    private static class ConflictResolution {
+        private boolean hasConflict;
+        private String conflictType;
+        private String clarificationMessage;
+        
+        public boolean hasConflict() { return hasConflict; }
+        public void setHasConflict(boolean hasConflict) { this.hasConflict = hasConflict; }
+        
+        public String getConflictType() { return conflictType; }
+        public void setConflictType(String conflictType) { this.conflictType = conflictType; }
+        
+        public String getClarificationMessage() { return clarificationMessage; }
+        public void setClarificationMessage(String message) { this.clarificationMessage = message; }
     }
 
     // Clases de request/response

@@ -16,8 +16,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -40,6 +41,9 @@ public class ConversationManagerController {
     @Autowired
     private TtsGenerationService ttsGenerationService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     /**
      * Procesa un mensaje de texto del usuario en el contexto de una conversación.
      */
@@ -48,7 +52,17 @@ public class ConversationManagerController {
             @RequestBody ConversationManager.ConversationRequest request) {
         
         logger.info("Procesando mensaje de texto para sesión {}: {}", request.getSessionId(), request.getUserMessage());
-        
+                
+        // 🔍 DEBUG: Mostrar metadata recibida en endpoint de texto
+        logger.info("🔍 DEBUG TEXTO - sessionId: {}", request.getSessionId());
+        logger.info("🔍 DEBUG TEXTO - userId: {}", request.getUserId());
+        logger.info("🔍 DEBUG TEXTO - userMessage: '{}'", request.getUserMessage());
+        logger.info("🔍 DEBUG TEXTO - metadata es null: {}", request.getMetadata() == null);
+        if (request.getMetadata() != null) {
+            logger.info("🔍 DEBUG TEXTO - metadata keys: {}", request.getMetadata().keySet());
+            logger.info("🔍 DEBUG TEXTO - metadata completa: {}", request.getMetadata());
+        }
+
         try {
             ConversationManager.ConversationResponse response = conversationManager.processMessage(request);
             
@@ -125,12 +139,28 @@ public class ConversationManagerController {
             conversationRequest.setUserMessage(transcribedText);
             
             // Añadir metadata si se proporciona
+            logger.info("🔍 DEBUG METADATA - Evaluando metadata...");
+            logger.info("🔍 DEBUG METADATA - metadataJson != null: {}", metadataJson != null);
+            if (metadataJson != null) {
+                logger.info("🔍 DEBUG METADATA - metadataJson.trim().isEmpty(): {}", metadataJson.trim().isEmpty());
+                logger.info("🔍 DEBUG METADATA - Contenido completo: '{}'", metadataJson);
+            }
             if (metadataJson != null && !metadataJson.trim().isEmpty()) {
+                logger.info("🔍 DEBUG METADATA - Iniciando parsing de JSON metadata...");
                 try {
-                    // Aquí se podría parsear el JSON de metadata si es necesario
-                    logger.info("Metadata proporcionada para sesión {}: {}", sessionId, metadataJson);
+                    // ✅ PARSEAR JSON DE MCP/TARGET CONTEXT 
+                    Map<String, Object> metadata = objectMapper.readValue(metadataJson, new TypeReference<Map<String, Object>>() {});
+                    logger.info("🔍 DEBUG METADATA - JSON parseado exitosamente. Claves disponibles: {}", metadata.keySet());
+                    logger.info("🔍 DEBUG METADATA - Contenido completo del Map: {}", metadata);
+                    
+                    conversationRequest.setMetadata(metadata);
+                    logger.info("Metadata parseada y añadida para sesión {}: mcp={}, target={}", 
+                               sessionId, 
+                               metadata.get("mcpContext"), 
+                               metadata.get("targetContext"));
                 } catch (Exception e) {
-                    logger.warn("Error parseando metadata para sesión {}: {}", sessionId, e.getMessage());
+                    logger.warn("Error parseando metadata JSON para sesión {}: {} - metadata ignorada", sessionId, e.getMessage());
+                    // Continuar sin metadata si hay error en el parsing
                 }
             }
             
@@ -410,7 +440,7 @@ public class ConversationManagerController {
             String testUserId = "test-user-" + System.currentTimeMillis();
             String testSessionId = "test-session-" + System.currentTimeMillis();
             
-            ConversationSession session = conversationManager.getOrCreateSession(testSessionId, testUserId);
+            conversationManager.getOrCreateSession(testSessionId, testUserId);
             
             // Procesar un mensaje de prueba
             ConversationManager.ConversationRequest request = new ConversationManager.ConversationRequest();
@@ -521,4 +551,34 @@ public class ConversationManagerController {
         public String getErrorMessage() { return errorMessage; }
         public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     }
-} 
+
+    // ❌ CLASES ELIMINADAS: EnrichedConversationRequest, ClarificationRequest
+    // ✅ NUEVO COMPORTAMIENTO: El contexto MCP/Target se envía mediante:
+    //    1. Campo 'metadata' estándar en ConversationRequest para /process
+    //    2. Parámetro 'metadata' JSON string para /process/audio
+    //    3. Mensaje WebSocket con campo 'metadata' para /ws/conversation
+    //
+    // Formato de metadata esperado:
+    // {
+    //   "mcpContext": {
+    //     "selectedMcp": "docker_mcp",
+    //     "buttonId": "docker_status",
+    //     "timestamp": "..."
+    //   },
+    //   "targetContext": {
+    //     "selectedTarget": "raspberry_pi_local",
+    //     "isPersistent": true,
+    //     "timestamp": "..."
+    //   },
+    //   "interactionContext": {
+    //     "source": "button_click",
+    //     "timestamp": "..."
+    //   },
+    //   "clarificationContext": {  // Para resolución de conflictos
+    //     "isResponse": true,
+    //     "selectedOption": "mcp",
+    //     "conflictId": "...",
+    //     "timestamp": "..."
+    //   }
+    // }
+}

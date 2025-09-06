@@ -236,6 +236,36 @@ services:
   # SERVICIOS TTS/ASR - COMUNES A MÚLTIPLES APLICACIONES
   # =============================================================================
   
+  # Servicio ASR - Whisper STT (Speech-to-Text)
+  puertocho-assistant-whisper:
+    build:
+      context: ./puertocho-assistant-server/whisper-ms/app
+      dockerfile: Dockerfile
+    container_name: ${WHISPER_SERVICE:-whisper-api}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    env_file:
+      - ./puertocho-assistant-server/whisper-ms/env
+    ports:
+      - "${WHISPER_HOST_PORT:-5000}:${FLASK_PORT:-5000}"
+    volumes:
+      - ./puertocho-assistant-server/whisper-ms/debug_audio:/app/debug_audio
+      - ./puertocho-assistant-server/whisper-ms/audio:/app/audio
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${FLASK_PORT:-5000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - puertocho-assistant-network
+
   # Servicio TTS Respaldo - Azure TTS (por defecto)
   puertocho-assistant-azure-tts:
     build:

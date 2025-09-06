@@ -22,6 +22,11 @@ public enum ConversationState {
     EXECUTING_TASKS("executing_tasks", "Ejecutando tareas"),
     
     /**
+     * Procesando mensaje del usuario.
+     */
+    PROCESSING("processing", "Procesando mensaje"),
+    
+    /**
      * Conversación completada exitosamente.
      */
     COMPLETED("completed", "Conversación completada"),
@@ -35,6 +40,11 @@ public enum ConversationState {
      * Conversación pausada temporalmente.
      */
     PAUSED("paused", "Conversación pausada"),
+    
+    /**
+     * Esperando aclaración del usuario por conflicto de contexto.
+     */
+    WAITING_CLARIFICATION("waiting_clarification", "Esperando aclaración del usuario"),
     
     /**
      * Conversación cancelada por el usuario.
@@ -67,7 +77,8 @@ public enum ConversationState {
      */
     public boolean canReceiveMessages() {
         // Permitir mensajes también durante EXECUTING_TASKS para simular ejecución inmediata
-        return this == ACTIVE || this == WAITING_SLOTS || this == EXECUTING_TASKS;
+        // y durante WAITING_CLARIFICATION para resolver conflictos
+        return this == ACTIVE || this == WAITING_SLOTS || this == EXECUTING_TASKS || this == WAITING_CLARIFICATION || this == PROCESSING;
     }
 
     /**
@@ -81,7 +92,7 @@ public enum ConversationState {
      * Verifica si el estado indica que la conversación está en progreso.
      */
     public boolean isInProgress() {
-        return this == ACTIVE || this == WAITING_SLOTS || this == EXECUTING_TASKS;
+        return this == ACTIVE || this == WAITING_SLOTS || this == EXECUTING_TASKS || this == WAITING_CLARIFICATION || this == PROCESSING;
     }
 
     /**
