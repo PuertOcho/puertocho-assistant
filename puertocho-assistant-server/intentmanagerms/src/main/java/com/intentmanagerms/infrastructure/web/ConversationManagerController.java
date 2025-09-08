@@ -228,19 +228,6 @@ public class ConversationManagerController {
     }
 
     /**
-     * Procesa un mensaje de audio simple sin generar respuesta de audio.
-     */
-    @PostMapping(value = "/process/audio/simple", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ConversationAudioResponse> processSimpleAudioMessage(
-            @RequestParam("audio") MultipartFile audioFile,
-            @RequestParam("sessionId") String sessionId,
-            @RequestParam("userId") String userId,
-            @RequestParam(value = "language", required = false, defaultValue = "es") String language) {
-        
-        return processAudioMessage(audioFile, sessionId, userId, language, false, null);
-    }
-
-    /**
      * Obtiene una sesión de conversación existente.
      */
     @GetMapping("/session/{sessionId}")
@@ -552,33 +539,4 @@ public class ConversationManagerController {
         public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     }
 
-    // ❌ CLASES ELIMINADAS: EnrichedConversationRequest, ClarificationRequest
-    // ✅ NUEVO COMPORTAMIENTO: El contexto MCP/Target se envía mediante:
-    //    1. Campo 'metadata' estándar en ConversationRequest para /process
-    //    2. Parámetro 'metadata' JSON string para /process/audio
-    //    3. Mensaje WebSocket con campo 'metadata' para /ws/conversation
-    //
-    // Formato de metadata esperado:
-    // {
-    //   "mcpContext": {
-    //     "selectedMcp": "docker_mcp",
-    //     "buttonId": "docker_status",
-    //     "timestamp": "..."
-    //   },
-    //   "targetContext": {
-    //     "selectedTarget": "raspberry_pi_local",
-    //     "isPersistent": true,
-    //     "timestamp": "..."
-    //   },
-    //   "interactionContext": {
-    //     "source": "button_click",
-    //     "timestamp": "..."
-    //   },
-    //   "clarificationContext": {  // Para resolución de conflictos
-    //     "isResponse": true,
-    //     "selectedOption": "mcp",
-    //     "conflictId": "...",
-    //     "timestamp": "..."
-    //   }
-    // }
 }

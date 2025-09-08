@@ -29,8 +29,7 @@ public class IntelligentFallbackService {
     
     private static final Logger logger = LoggerFactory.getLogger(IntelligentFallbackService.class);
     
-    @Autowired
-    private VectorStoreService vectorStoreService;
+    // VectorStoreService eliminado - usando clasificación directa por JSON
     
     @Autowired
     private IntentConfigManager intentConfigManager;
@@ -162,39 +161,15 @@ public class IntelligentFallbackService {
             
             // Buscar con umbral reducido
             double reducedThreshold = Math.max(0.1, similarityReductionFactor);
-            SearchResult searchResult = vectorStoreService.searchSimilar(
-                request.getText(), 
-                inputEmbedding, 
-                request.getMaxExamplesForRag() != null ? request.getMaxExamplesForRag() : 10
-            );
+            // Vector Store eliminado - usando fallback directo por ahora
+            // SearchResult searchResult = vectorStoreService.searchSimilar(...);
             
-            // Filtrar con umbral reducido
-            List<EmbeddingDocument> examples = searchResult.getDocuments().stream()
-                .filter(doc -> doc.getSimilarity() >= reducedThreshold)
-                .sorted((a, b) -> Double.compare(b.getSimilarity(), a.getSimilarity()))
-                .limit(5)
-                .collect(Collectors.toList());
-            
-            if (examples.isEmpty()) {
-                return createFallbackResult("ayuda", 0.2, "No se encontraron ejemplos con similitud reducida", startTime);
-            }
-            
-            // Construir prompt con ejemplos de similitud reducida
-            String prompt = promptEngineeringService.buildPromptWithStrategy(
-                request, examples, "adaptive"
-            );
-            
-            // Clasificar con LLM
-            String llmResponse = classifyWithLlm(prompt);
-            IntentClassificationResult result = parseLlmResponse(llmResponse, examples);
-            
-            // Calcular confidence con penalización por similitud reducida
-            double baseConfidence = confidenceScoringService.calculateConfidenceScore(result, examples);
-            double penalizedConfidence = baseConfidence * 0.8; // Penalización del 20%
-            
-            result.setConfidenceScore(penalizedConfidence);
+            // Generar resultado de fallback simple
+            IntentClassificationResult result = new IntentClassificationResult();
+            result.setIntentId("ayuda");
+            result.setConfidenceScore(0.3);
             result.setFallbackUsed(true);
-            result.setFallbackReason("Fallback por similitud reducida (umbral: " + reducedThreshold + ")");
+            result.setFallbackReason("Fallback de similitud reducida - Vector Store eliminado");
             result.setProcessingTimeMs(System.currentTimeMillis() - startTime);
             
             return result;
@@ -524,7 +499,7 @@ public class IntelligentFallbackService {
     public boolean isHealthy() {
         try {
             // Verificar que los servicios dependientes estén disponibles
-            boolean vectorStoreHealthy = vectorStoreService.isHealthy();
+            boolean vectorStoreHealthy = true; // Vector Store eliminado
             boolean intentConfigHealthy = intentConfigManager.getHealthInfo().get("status").equals("HEALTHY");
             
             return vectorStoreHealthy && intentConfigHealthy;

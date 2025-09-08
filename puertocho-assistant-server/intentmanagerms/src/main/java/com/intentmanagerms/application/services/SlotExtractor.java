@@ -192,42 +192,117 @@ public class SlotExtractor {
     // Métodos privados
 
     private void initializeExtractionPatterns() {
-        // Patrones para ubicaciones
+        // ✅ PATRONES MEJORADOS PARA UBICACIONES Y LUGARES
         List<Pattern> locationPatterns = Arrays.asList(
-            Pattern.compile("(?:en|de|desde|hacia)\\s+([A-Za-záéíóúñ\\s]{2,})", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(?:ciudad|pueblo|lugar)\\s+(?:de\\s+)?([A-Za-záéíóúñ\\s]{2,})", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("\\b(Madrid|Barcelona|Sevilla|Valencia|Bilbao|Zaragoza|Málaga|Murcia|Palma|Las Palmas|Córdoba|Alicante|Valladolid|Vigo|Gijón|Hospitalet|Vitoria|Granada|Elche|Oviedo|Santa Cruz|Pamplona|Almería|San Sebastián|Burgos|Albacete|Santander|Getafe|Castellón|Logroño|Badajoz|Huelva|Salamanca|Lleida|Tarragona|León|Cádiz|Jerez|Ourense|Avilés|Palencia|Gijón)\\b", Pattern.CASE_INSENSITIVE)
+            // Preposiciones de lugar
+            Pattern.compile("(?:en|de|desde|hacia|por)\\s+(?:la|el|las|los)?\\s*([A-Za-záéíóúñü\\s]{2,})", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:ciudad|pueblo|lugar|zona|barrio|distrito)\\s+(?:de\\s+)?([A-Za-záéíóúñü\\s]{2,})", Pattern.CASE_INSENSITIVE),
+            // Ciudades españolas principales y autonómicas
+            Pattern.compile("\\b(Madrid|Barcelona|Sevilla|Valencia|Bilbao|Zaragoza|Málaga|Murcia|Palma|Las Palmas|Córdoba|Alicante|Valladolid|Vigo|Gijón|L'Hospitalet|Vitoria|Gasteiz|Granada|Elche|Oviedo|Badalona|Cartagena|Terrassa|Jerez|Sabadell|Móstoles|Santa Cruz|Pamplona|Iruña|Almería|Fuenlabrada|San Sebastián|Donostia|Leganés|Burgos|Santander|Castellón|Alcorcón|Getafe|Logroño|Badajoz|Huelva|Lleida|Marbella|León|Cádiz|Dos Hermanas|Torrejón|Parla|Alcobendas|Reus|Ourense|Girona|Santiago|Lugo|Pontevedra)\\b", Pattern.CASE_INSENSITIVE),
+            // Países comunes
+            Pattern.compile("\\b(España|Francia|Portugal|Italia|Alemania|Reino Unido|Estados Unidos|México|Argentina|Colombia|Perú|Chile|Venezuela|Ecuador|Bolivia|Uruguay|Paraguay|Brasil|Canadá|Japón|China|Corea|India)\\b", Pattern.CASE_INSENSITIVE)
         );
         extractionPatterns.put("ubicacion", locationPatterns);
         extractionPatterns.put("lugar", locationPatterns);
         extractionPatterns.put("ciudad", locationPatterns);
 
-        // Patrones para fechas
+        // ✅ PATRONES PARA HABITACIONES Y ESPACIOS DOMÉSTICOS
+        List<Pattern> roomPatterns = Arrays.asList(
+            Pattern.compile("(?:en|del|de\\s+la)\\s+(?:la\\s+)?(sala|salón|comedor|cocina|baño|dormitorio|habitación|cuarto|recibidor|pasillo|terraza|balcón|jardín|patio|garaje|sótano|ático|despacho|estudio|lavadero|trastero)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(sala|salón|living|comedor|cocina|kitchen|baño|aseo|dormitorio|habitación|cuarto|bedroom|recibidor|hall|pasillo|corredor|terraza|balcón|jardín|patio|garaje|garage|sótano|basement|ático|despacho|oficina|estudio|lavadero|trastero)\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:la\\s+luz|luces?)\\s+(?:de|del)\\s+(?:la\\s+)?(\\w+)", Pattern.CASE_INSENSITIVE)
+        );
+        extractionPatterns.put("lugar", roomPatterns);
+        extractionPatterns.put("habitacion", roomPatterns);
+        extractionPatterns.put("espacio", roomPatterns);
+
+        // ✅ PATRONES MEJORADOS PARA FECHAS Y TIEMPO
         List<Pattern> datePatterns = Arrays.asList(
-            Pattern.compile("(\\d{1,2}[/\\-]\\d{1,2}[/\\-]\\d{2,4})"),
-            Pattern.compile("(?:el\\s+)?(\\d{1,2})\\s+de\\s+(\\w+)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(hoy|mañana|ayer|pasado\\s+mañana)", Pattern.CASE_INSENSITIVE)
+            // Fechas numéricas
+            Pattern.compile("(\\d{1,2}[/\\-\\.]\\d{1,2}[/\\-\\.]\\d{2,4})"),
+            Pattern.compile("(?:el\\s+día\\s+)?(\\d{1,2})\\s+de\\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)", Pattern.CASE_INSENSITIVE),
+            // Fechas relativas
+            Pattern.compile("\\b(hoy|mañana|ayer|pasado\\s+mañana|anteayer|la\\s+semana\\s+que\\s+viene|el\\s+próximo\\s+\\w+|este\\s+\\w+|el\\s+\\w+\\s+que\\s+viene)\\b", Pattern.CASE_INSENSITIVE),
+            // Días de la semana
+            Pattern.compile("\\b(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\\b", Pattern.CASE_INSENSITIVE),
+            // Fechas en formato YYYY-MM-DD
+            Pattern.compile("(\\d{4}[/\\-\\.]\\d{1,2}[/\\-\\.]\\d{1,2})")
         );
         extractionPatterns.put("fecha", datePatterns);
+        extractionPatterns.put("fecha_hora", datePatterns);
 
-        // Patrones para horas
+        // ✅ PATRONES MEJORADOS PARA HORAS
         List<Pattern> timePatterns = Arrays.asList(
-            Pattern.compile("(?:a\\s+las?\\s+)?(\\d{1,2}[:]\\d{2})(?:\\s*(AM|PM|am|pm))?", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(?:a\\s+las?\\s+)?(\\d{1,2})(?:\\s*(AM|PM|am|pm))?", Pattern.CASE_INSENSITIVE)
+            // Horas con formato 24h y 12h
+            Pattern.compile("(?:a\\s+las?\\s+)?(\\d{1,2}[:\\.]\\d{2})(?:\\s*(AM|PM|am|pm|h|hrs?|horas?))?", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:a\\s+las?\\s+)?(\\d{1,2})(?:\\s*(AM|PM|am|pm|h|hrs?|horas?|en\\s+punto))?\\b", Pattern.CASE_INSENSITIVE),
+            // Horas en formato texto
+            Pattern.compile("\\b(mediodía|medianoche|madrugada|mañana|tarde|noche)\\b", Pattern.CASE_INSENSITIVE),
+            // Rangos de tiempo
+            Pattern.compile("(?:en|dentro\\s+de)\\s+(\\d+)\\s*(minutos?|mins?|horas?|hrs?)", Pattern.CASE_INSENSITIVE)
         );
         extractionPatterns.put("hora", timePatterns);
+        extractionPatterns.put("tiempo", timePatterns);
 
-        // Patrones para temperaturas
+        // ✅ PATRONES PARA DISPOSITIVOS IOT Y SMART HOME
+        List<Pattern> devicePatterns = Arrays.asList(
+            Pattern.compile("\\b(luz|luces|lámpara|lamparas|bombilla|bombillas|foco|focos|iluminación)\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(aire\\s+acondicionado|calefacción|termostato|climatización|ventilador|radiador)\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(televisión|televisor|tv|tele|radio|equipo\\s+de\\s+música|altavoces?|parlantes?)\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(persiana|persianas|cortina|cortinas|ventana|ventanas|puerta|puertas)\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(cámara|cámaras|alarma|alarmas|sensor|sensores|detector)\\b", Pattern.CASE_INSENSITIVE)
+        );
+        extractionPatterns.put("dispositivo", devicePatterns);
+        extractionPatterns.put("aparato", devicePatterns);
+
+        // ✅ PATRONES PARA ACCIONES Y OPERACIONES
+        List<Pattern> actionPatterns = Arrays.asList(
+            Pattern.compile("\\b(encender|enciende|prender|prende|activar|activa|conectar|conecta|abrir|abre)\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(apagar|apaga|desactivar|desactiva|desconectar|desconecta|cerrar|cierra|detener|detén|parar|para)\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(subir|sube|aumentar|aumenta|bajar|baja|disminuir|disminuye|regular|regula)\\b", Pattern.CASE_INSENSITIVE)
+        );
+        extractionPatterns.put("accion", actionPatterns);
+        extractionPatterns.put("operacion", actionPatterns);
+
+        // ✅ PATRONES PARA TEMPERATURAS Y MEDIDAS
         List<Pattern> temperaturePatterns = Arrays.asList(
-            Pattern.compile("(\\d+)\\s*(?:grados?|°)(?:\\s*[CcFf])?", Pattern.CASE_INSENSITIVE)
+            Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:grados?|°)(?:\\s*[CcFf])?", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:temperatura|temp)\\s+(?:de|a)?\\s*(\\d+(?:\\.\\d+)?)(?:\\s*grados?|°)?", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(frío|fría|caliente|templado|templada|tibio|tibia)\\b", Pattern.CASE_INSENSITIVE)
         );
         extractionPatterns.put("temperatura", temperaturePatterns);
 
-        // Patrones para nombres
+        // ✅ PATRONES PARA NOMBRES Y IDENTIFICADORES
         List<Pattern> namePatterns = Arrays.asList(
-            Pattern.compile("(?:llamado|llamada|nombre|se\\s+llama)\\s+([A-Za-záéíóúñ\\s]+)", Pattern.CASE_INSENSITIVE)
+            Pattern.compile("(?:llamado|llamada|llamar|nombre|se\\s+llama|identificado\\s+como)\\s+([A-Za-záéíóúñü\\s]{2,})", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:es|son)\\s+([A-Za-záéíóúñü]{2,})", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b([A-Z][a-záéíóúñü]{2,})\\b") // Nombres propios
         );
         extractionPatterns.put("nombre", namePatterns);
+
+        // ✅ PATRONES PARA CANTIDADES Y NÚMEROS
+        List<Pattern> quantityPatterns = Arrays.asList(
+            Pattern.compile("\\b(\\d+(?:\\.\\d+)?)\\s*(?:unidades?|piezas?|elementos?|items?)?\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciséis|diecisiete|dieciocho|diecinueve|veinte)\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(muchos|muchas|pocos|pocas|varios|varias|algunos|algunas|todos|todas)\\b", Pattern.CASE_INSENSITIVE)
+        );
+        extractionPatterns.put("cantidad", quantityPatterns);
+        extractionPatterns.put("numero", quantityPatterns);
+
+        // ✅ PATRONES PARA COLORES
+        List<Pattern> colorPatterns = Arrays.asList(
+            Pattern.compile("\\b(rojo|roja|azul|verde|amarillo|amarilla|negro|negra|blanco|blanca|gris|rosa|morado|morada|naranja|violeta|marrón|beige|dorado|dorada|plateado|plateada)\\b", Pattern.CASE_INSENSITIVE)
+        );
+        extractionPatterns.put("color", colorPatterns);
+
+        // ✅ PATRONES PARA INTENSIDAD Y NIVELES
+        List<Pattern> intensityPatterns = Arrays.asList(
+            Pattern.compile("\\b(máximo|máxima|mínimo|mínima|alto|alta|bajo|baja|medio|media|fuerte|suave|intenso|intensa|débil)\\b", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:al|a)\\s*(\\d+(?:\\.\\d+)?)\\s*(?:por\\s*ciento|%)?", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?:nivel|intensidad)\\s*(\\d+)", Pattern.CASE_INSENSITIVE)
+        );
+        extractionPatterns.put("intensidad", intensityPatterns);
+        extractionPatterns.put("nivel", intensityPatterns);
     }
 
     private Map<String, Object> extractWithPatterns(String userMessage, List<String> targetSlots) {

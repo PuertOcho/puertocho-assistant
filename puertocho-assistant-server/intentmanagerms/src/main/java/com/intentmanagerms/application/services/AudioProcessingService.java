@@ -33,7 +33,7 @@ public class AudioProcessingService {
     private int minDurationSeconds;
 
     @Autowired
-    private RagIntentClassifier ragIntentClassifier;
+    private JsonIntentClassifier jsonIntentClassifier;
 
     @Autowired
     private LlmVotingService llmVotingService;
@@ -220,7 +220,7 @@ public class AudioProcessingService {
             // TODO: Implementar enriquecimiento de contexto con metadata
         }
 
-        IntentClassificationResult result = ragIntentClassifier.classifyIntent(request);
+        IntentClassificationResult result = jsonIntentClassifier.classifyIntent(request);
 
         logger.debug("Intención clasificada: {} (confianza: {})", 
                 result.getIntentId(), result.getConfidenceScore());

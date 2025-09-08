@@ -24,7 +24,7 @@ public class ConversationManager {
     private static final Logger logger = LoggerFactory.getLogger(ConversationManager.class);
 
     @Autowired
-    private RagIntentClassifier ragIntentClassifier;
+    private JsonIntentClassifier jsonIntentClassifier;
 
     @Autowired
     private LlmVotingService llmVotingService;
@@ -153,7 +153,7 @@ public class ConversationManager {
                 return createConflictResponse(session, conflictCheck, turn);
             }
 
-            // Clasificar intención usando RAG con contexto enriquecido
+            // Clasificar intención usando JSON directo con contexto enriquecido
             IntentClassificationRequest classificationRequest = new IntentClassificationRequest();
             classificationRequest.setText(userMessage);
             classificationRequest.setSessionId(sessionId);
@@ -163,7 +163,7 @@ public class ConversationManager {
             combinedMetadata.putAll(enrichedContext);
             classificationRequest.setContextMetadata(combinedMetadata);
 
-            IntentClassificationResult classificationResult = ragIntentClassifier.classifyIntent(classificationRequest);
+            IntentClassificationResult classificationResult = jsonIntentClassifier.classifyIntent(classificationRequest);
             
             // Actualizar turno con resultados de clasificación
             turn.setDetectedIntent(classificationResult.getIntentId());
@@ -372,10 +372,10 @@ public class ConversationManager {
             redisTemplate.opsForValue().get("health_check");
             
             // Verificar servicios dependientes
-            boolean ragHealthy = ragIntentClassifier != null;
+            boolean jsonClassifierHealthy = jsonIntentClassifier != null && jsonIntentClassifier.isHealthy();
             boolean votingHealthy = llmVotingService != null;
             
-            return ragHealthy && votingHealthy;
+            return jsonClassifierHealthy && votingHealthy;
         } catch (Exception e) {
             logger.error("Error en health check: {}", e.getMessage());
             return false;

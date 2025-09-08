@@ -265,14 +265,10 @@ public class ConfidenceScoringService {
             confidence += 0.2;
         }
         
-        if (result.getRagExamplesUsed() != null) {
-            long examplesWithMetadata = result.getRagExamplesUsed().stream()
-                    .filter(example -> example.getMetadata() != null && !example.getMetadata().isEmpty())
-                    .count();
-            
-            if (examplesWithMetadata > 0) {
-                confidence += 0.3 * (examplesWithMetadata / (double) result.getRagExamplesUsed().size());
-            }
+        if (result.getExamplesUsed() != null && !result.getExamplesUsed().isEmpty()) {
+            // Boost de confianza basado en el número de ejemplos utilizados
+            double examplesBoost = Math.min(0.2, result.getExamplesUsed().size() * 0.05);
+            confidence += examplesBoost;
         }
         
         return Math.min(confidence, 1.0);

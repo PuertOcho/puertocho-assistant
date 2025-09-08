@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Resultado de clasificación de intenciones usando RAG.
- * Incluye información detallada sobre el proceso de clasificación y ejemplos utilizados.
+ * Resultado de clasificación de intenciones.
+ * Incluye información detallada sobre el proceso de clasificación y metadata del análisis.
  */
 public class IntentClassificationResult {
     
@@ -26,8 +26,8 @@ public class IntentClassificationResult {
     @JsonProperty("expert_domain")
     private String expertDomain;
     
-    @JsonProperty("rag_examples_used")
-    private List<RagExample> ragExamplesUsed;
+    @JsonProperty("examples_used")
+    private List<String> examplesUsed;
     
     @JsonProperty("prompt_used")
     private String promptUsed;
@@ -38,8 +38,8 @@ public class IntentClassificationResult {
     @JsonProperty("processing_time_ms")
     private Long processingTimeMs;
     
-    @JsonProperty("vector_search_time_ms")
-    private Long vectorSearchTimeMs;
+    @JsonProperty("similarity_analysis_time_ms")
+    private Long similarityAnalysisTimeMs;
     
     @JsonProperty("llm_inference_time_ms")
     private Long llmInferenceTimeMs;
@@ -53,28 +53,31 @@ public class IntentClassificationResult {
     @JsonProperty("fallback_reason")
     private String fallbackReason;
     
-    @JsonProperty("metadata")
-    private Map<String, Object> metadata;
-    
-    @JsonProperty("timestamp")
-    private LocalDateTime timestamp;
-    
     @JsonProperty("success")
     private Boolean success;
     
     @JsonProperty("error_message")
     private String errorMessage;
     
+    @JsonProperty("metadata")
+    private Map<String, Object> metadata;
+    
+    @JsonProperty("timestamp")
+    private LocalDateTime timestamp;
+    
+    // Constructor por defecto
     public IntentClassificationResult() {
         this.timestamp = LocalDateTime.now();
         this.success = true;
         this.fallbackUsed = false;
     }
     
-    public IntentClassificationResult(String intentId, Double confidenceScore) {
+    // Constructor con parámetros principales
+    public IntentClassificationResult(String intentId, Double confidenceScore, Map<String, Object> detectedEntities) {
         this();
         this.intentId = intentId;
         this.confidenceScore = confidenceScore;
+        this.detectedEntities = detectedEntities;
     }
     
     // Getters y Setters
@@ -118,12 +121,12 @@ public class IntentClassificationResult {
         this.expertDomain = expertDomain;
     }
     
-    public List<RagExample> getRagExamplesUsed() {
-        return ragExamplesUsed;
+    public List<String> getExamplesUsed() {
+        return examplesUsed;
     }
     
-    public void setRagExamplesUsed(List<RagExample> ragExamplesUsed) {
-        this.ragExamplesUsed = ragExamplesUsed;
+    public void setExamplesUsed(List<String> examplesUsed) {
+        this.examplesUsed = examplesUsed;
     }
     
     public String getPromptUsed() {
@@ -150,12 +153,12 @@ public class IntentClassificationResult {
         this.processingTimeMs = processingTimeMs;
     }
     
-    public Long getVectorSearchTimeMs() {
-        return vectorSearchTimeMs;
+    public Long getSimilarityAnalysisTimeMs() {
+        return similarityAnalysisTimeMs;
     }
     
-    public void setVectorSearchTimeMs(Long vectorSearchTimeMs) {
-        this.vectorSearchTimeMs = vectorSearchTimeMs;
+    public void setSimilarityAnalysisTimeMs(Long similarityAnalysisTimeMs) {
+        this.similarityAnalysisTimeMs = similarityAnalysisTimeMs;
     }
     
     public Long getLlmInferenceTimeMs() {
@@ -190,6 +193,23 @@ public class IntentClassificationResult {
         this.fallbackReason = fallbackReason;
     }
     
+    public Boolean getSuccess() {
+        return success;
+    }
+    
+    public void setSuccess(Boolean success) {
+        this.success = success;
+    }
+    
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+    
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+        this.success = false;
+    }
+    
     public Map<String, Object> getMetadata() {
         return metadata;
     }
@@ -206,129 +226,40 @@ public class IntentClassificationResult {
         this.timestamp = timestamp;
     }
     
-    public Boolean getSuccess() {
-        return success;
-    }
+    // Métodos de utilidad
     
-    public void setSuccess(Boolean success) {
-        this.success = success;
-    }
-    
-    public String getErrorMessage() {
-        return errorMessage;
-    }
-    
-    public void setErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
+    /**
+     * Verifica si la clasificación fue exitosa y confiable
+     */
+    public boolean isSuccessfulClassification() {
+        return success != null && success && 
+               confidenceScore != null && confidenceScore > 0.7 && 
+               !Boolean.TRUE.equals(fallbackUsed);
     }
     
     /**
-     * Ejemplo RAG utilizado en la clasificación
+     * Obtiene la confianza promedio de similitud
      */
-    public static class RagExample {
-        @JsonProperty("example_text")
-        private String exampleText;
-        
-        @JsonProperty("intent_id")
-        private String intentId;
-        
-        @JsonProperty("similarity_score")
-        private Double similarityScore;
-        
-        @JsonProperty("source")
-        private String source;
-        
-        @JsonProperty("metadata")
-        private Map<String, Object> metadata;
-        
-        public RagExample() {}
-        
-        public RagExample(String exampleText, String intentId, Double similarityScore) {
-            this.exampleText = exampleText;
-            this.intentId = intentId;
-            this.similarityScore = similarityScore;
-        }
-        
-        // Getters y Setters
-        public String getExampleText() {
-            return exampleText;
-        }
-        
-        public void setExampleText(String exampleText) {
-            this.exampleText = exampleText;
-        }
-        
-        public String getIntentId() {
-            return intentId;
-        }
-        
-        public void setIntentId(String intentId) {
-            this.intentId = intentId;
-        }
-        
-        public Double getSimilarityScore() {
-            return similarityScore;
-        }
-        
-        public void setSimilarityScore(Double similarityScore) {
-            this.similarityScore = similarityScore;
-        }
-        
-        public String getSource() {
-            return source;
-        }
-        
-        public void setSource(String source) {
-            this.source = source;
-        }
-        
-        public Map<String, Object> getMetadata() {
-            return metadata;
-        }
-        
-        public void setMetadata(Map<String, Object> metadata) {
-            this.metadata = metadata;
-        }
-        
-        @Override
-        public String toString() {
-            return "RagExample{" +
-                    "exampleText='" + exampleText + '\'' +
-                    ", intentId='" + intentId + '\'' +
-                    ", similarityScore=" + similarityScore +
-                    ", source='" + source + '\'' +
-                    ", metadata=" + metadata +
-                    '}';
-        }
-    }
-    
-    /**
-     * Métodos de utilidad
-     */
-    public boolean isHighConfidence() {
-        return confidenceScore != null && confidenceScore >= 0.8;
-    }
-    
-    public boolean isMediumConfidence() {
-        return confidenceScore != null && confidenceScore >= 0.6 && confidenceScore < 0.8;
-    }
-    
-    public boolean isLowConfidence() {
-        return confidenceScore != null && confidenceScore < 0.6;
-    }
-    
     public double getAverageSimilarityScore() {
-        if (similarityScores == null || similarityScores.isEmpty()) {
-            return 0.0;
-        }
-        return similarityScores.stream()
+        return similarityScores != null && !similarityScores.isEmpty() ?
+                similarityScores.stream()
                 .mapToDouble(Double::doubleValue)
                 .average()
-                .orElse(0.0);
+                .orElse(0.0) : 0.0;
     }
     
-    public int getRagExamplesCount() {
-        return ragExamplesUsed != null ? ragExamplesUsed.size() : 0;
+    /**
+     * Obtiene el número de ejemplos utilizados
+     */
+    public int getExamplesCount() {
+        return examplesUsed != null ? examplesUsed.size() : 0;
+    }
+    
+    /**
+     * Verifica si se detectaron entidades
+     */
+    public boolean hasEntities() {
+        return detectedEntities != null && !detectedEntities.isEmpty();
     }
     
     @Override
@@ -336,14 +267,14 @@ public class IntentClassificationResult {
         return "IntentClassificationResult{" +
                 "intentId='" + intentId + '\'' +
                 ", confidenceScore=" + confidenceScore +
-                ", detectedEntities=" + detectedEntities +
+                ", detectedEntities=" + (detectedEntities != null ? detectedEntities.size() : 0) + " entities" +
                 ", mcpAction='" + mcpAction + '\'' +
                 ", expertDomain='" + expertDomain + '\'' +
-                ", ragExamplesUsed=" + (ragExamplesUsed != null ? ragExamplesUsed.size() : 0) + " examples" +
+                ", examplesUsed=" + getExamplesCount() + " examples" +
                 ", processingTimeMs=" + processingTimeMs +
                 ", fallbackUsed=" + fallbackUsed +
                 ", success=" + success +
                 ", timestamp=" + timestamp +
                 '}';
     }
-} 
+}
